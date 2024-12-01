@@ -4,7 +4,6 @@
 #undef main
 
 GameEngine::Engine engine;
-Input input;
 float globalRotation = 0.0f;
 
 //To use this fuction we just call *GetGlobalRotation() and get the value of the global rotation
@@ -310,25 +309,20 @@ public:
 			damageCooldown = 0;
 		}
 	}
-
 	void ShootCheck() {
-
-		if (GetAsyncKeyState(input.ShootAction[0]) & 0x8000) {
+		if (input.IsGamepadButtonPressed(GamepadButton::A, false)) {
 			if (!keyPressed) {
 				missile* bullet = new missile();
 				bullet->position.x = position.x + bulletOffset.x;
 				bullet->position.y = position.y + bulletOffset.y;
 				bullet->firePower = firePower;
 				engine.getLevel().addObject(bullet);
-
 				keyPressed = true;
 			}
 		}
-		else
-		{
+		else {
 			keyPressed = false;
 		}
-
 	};
 private:
 	float damageCooldownDefault = 1;
@@ -376,32 +370,24 @@ public:
 			ShootCheck();
 			checkDamageCooldown();
 
-			if (GetKeyState(input.MoveLeft[0]) & 0x8000)
-			{
+			if (input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false)) {
 				position.x -= movementSpeed * engine.deltaTime;
 			}
-			else if (GetKeyState(input.MoveRight[0]) & 0x8000)
-			{
+			else if (input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
 				position.x += movementSpeed * engine.deltaTime;
-
 			}
 
-
-			if (GetKeyState(input.MoveUp[0]) & 0x8000)
-			{
+			if (input.IsGamepadButtonPressed(GamepadButton::DPadUp, false)) {
 				position.y -= movementSpeed * engine.deltaTime;
 				animationState = 1;
 			}
-			else if (GetKeyState(input.MoveDown[0]) & 0x8000)
-			{
+			else if (input.IsGamepadButtonPressed(GamepadButton::DPadDown, false)) {
 				position.y += movementSpeed * engine.deltaTime;
 				animationState = 2;
 			}
-			else
-			{
+			else {
 				animationState = 0;
 			}
-
 		}
 
 		if (animationState == 1 && currentAnimation != "Up")
@@ -492,14 +478,6 @@ int main()
 	gameWindow.windowName = "Xenon 2000";
 	gameWindow.windowWidth = 640;
 	gameWindow.windowHeight = 480;
-
-	// Input Mapping
-
-	input.ShootAction = { VK_SPACE };
-	input.MoveDown = { VK_DOWN };
-	input.MoveLeft = { VK_LEFT };
-	input.MoveRight = { VK_RIGHT };
-	input.MoveUp = { VK_UP };
 
 	GameLevel level;
 
