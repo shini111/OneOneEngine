@@ -4,7 +4,6 @@
 #undef main
 
 GameEngine::Engine engine;
-Input input;
 float globalRotation = 0.0f;
 
 //To use this fuction we just call *GetGlobalRotation() and get the value of the global rotation
@@ -173,8 +172,6 @@ public:
 	void OnCollideEnter(GameObject& contact) override {
 		if (contact.objectGroup == "bullet") {
 
-
-
 			explosion* boom = new explosion();
 			boom->position.x = position.x;
 			boom->position.y = position.y;
@@ -310,25 +307,20 @@ public:
 			damageCooldown = 0;
 		}
 	}
-
 	void ShootCheck() {
-
-		if (GetAsyncKeyState(input.ShootAction[0]) & 0x8000) {
+		if (input.IsGamepadButtonPressed(GamepadButton::A, false)) {
 			if (!keyPressed) {
 				missile* bullet = new missile();
 				bullet->position.x = position.x + bulletOffset.x;
 				bullet->position.y = position.y + bulletOffset.y;
 				bullet->firePower = firePower;
 				engine.getLevel().addObject(bullet);
-
 				keyPressed = true;
 			}
 		}
-		else
-		{
+		else {
 			keyPressed = false;
 		}
-
 	};
 private:
 	float damageCooldownDefault = 1;
@@ -376,44 +368,35 @@ public:
 			ShootCheck();
 			checkDamageCooldown();
 
-			if (GetKeyState(input.MoveLeft[0]) & 0x8000)
-			{
+			if (input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false)) {
 				position.x -= movementSpeed * engine.deltaTime;
-			}
-			else if (GetKeyState(input.MoveRight[0]) & 0x8000)
-			{
-				position.x += movementSpeed * engine.deltaTime;
-
-			}
-
-
-			if (GetKeyState(input.MoveUp[0]) & 0x8000)
-			{
-				position.y -= movementSpeed * engine.deltaTime;
-				animationState = 1;
-			}
-			else if (GetKeyState(input.MoveDown[0]) & 0x8000)
-			{
-				position.y += movementSpeed * engine.deltaTime;
 				animationState = 2;
 			}
-			else
-			{
+			else if (input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
+				position.x += movementSpeed * engine.deltaTime;
+				animationState = 1;
+			}
+			else {
 				animationState = 0;
 			}
-
+			if (input.IsGamepadButtonPressed(GamepadButton::DPadUp, false)) {
+				position.y -= movementSpeed * engine.deltaTime;
+			}
+			else if(input.IsGamepadButtonPressed(GamepadButton::DPadDown, false)) {
+				position.y += movementSpeed * engine.deltaTime;
+			}
 		}
 
-		if (animationState == 1 && currentAnimation != "Up")
+		if (animationState == 1 && currentAnimation != "Right")
 		{
-			currentAnimation = "Up";
+			currentAnimation = "Right";
 
 			animation = Animation("resources/graphics/Ship1.bmp", 0.1f, textureDimentions, false, { AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0) });
 			animation.spriteIndex = 0;
 		}
-		else if (animationState == 2 && currentAnimation != "Down")
+		else if (animationState == 2 && currentAnimation != "Left")
 		{
-			currentAnimation = "Down";
+			currentAnimation = "Left";
 			animation = Animation("resources/graphics/Ship1.bmp", 0.1f, textureDimentions, false, { AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0) });
 			animation.spriteIndex = 0;
 		}
@@ -434,20 +417,59 @@ public:
 	}
 
 	void OnCollideEnter(GameObject& contact) override {
+
+		int textureDimentions[2] = { 7,3 };
+
 		if (contact.objectGroup == "enemyBullet") {
 			explosion* boom = new explosion();
 			boom->position.x = position.x;
 			boom->position.y = position.y;
+			if (animationState == 1 && currentAnimation != "Right")
+			{
+				currentAnimation = "Up";
+
+				animation = Animation("resources/graphics/Ship2.bmp", 0.1f, textureDimentions, false,
+					{
+					AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0), AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0), AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0),
+					AnimationCoord(6,1),AnimationCoord(6,1),AnimationCoord(6,1), AnimationCoord(4,1),AnimationCoord(5,1),AnimationCoord(6,1), AnimationCoord(4,1),AnimationCoord(5,1),AnimationCoord(6,1),
+					AnimationCoord(6,2),AnimationCoord(6,2),AnimationCoord(6,2), AnimationCoord(4,2),AnimationCoord(5,2),AnimationCoord(6,2), AnimationCoord(4,2),AnimationCoord(5,2),AnimationCoord(6,2)
+					}
+				);
+				animation.spriteIndex = 0;
+			}
+			else if (animationState == 2 && currentAnimation != "Left")
+			{
+				currentAnimation = "Down";
+				animation = Animation("resources/graphics/Ship2.bmp", 0.1f, textureDimentions, false,
+					{
+					AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0) , AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0), AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0),
+					AnimationCoord(2,1),AnimationCoord(1,1),AnimationCoord(0,1), AnimationCoord(2,1),AnimationCoord(1,1),AnimationCoord(0,1), AnimationCoord(2,1),AnimationCoord(1,1),AnimationCoord(0,1),
+					AnimationCoord(2,2),AnimationCoord(1,2),AnimationCoord(0,2), AnimationCoord(2,2),AnimationCoord(1,2),AnimationCoord(0,2), AnimationCoord(2,2),AnimationCoord(1,2),AnimationCoord(0,2)
+					}
+				);
+				animation.spriteIndex = 0;
+			}
+			else if (animationState == 0 && currentAnimation != "Idle")
+			{
+				currentAnimation = "Idle";
+				animation = Animation("resources/graphics/Ship1.bmp", 0.1f, textureDimentions, false,
+					{
+						AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2)
+					}
+				);
+				animation.spriteIndex = 0;
+			}
 			engine.getLevel().addObject(boom);
 			TakeShipDamage();
 			contact.Destroy();
 		}
 
 		if (contact.objectGroup == "enemy") {
+			animation = Animation("resources/graphics/Ship2.bmp", 0.1f, textureDimentions, false, { AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2) });
+			animation.spriteIndex = 0;
 			TakeShipDamage();
 		}
 	}
-
 };
 
 class rusherSpawner : public GameObject
@@ -492,14 +514,6 @@ int main()
 	gameWindow.windowName = "Xenon 2000";
 	gameWindow.windowWidth = 640;
 	gameWindow.windowHeight = 480;
-
-	// Input Mapping
-
-	input.ShootAction = { VK_SPACE };
-	input.MoveDown = { VK_DOWN };
-	input.MoveLeft = { VK_LEFT };
-	input.MoveRight = { VK_RIGHT };
-	input.MoveUp = { VK_UP };
 
 	GameLevel level;
 

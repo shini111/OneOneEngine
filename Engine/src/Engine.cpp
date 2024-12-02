@@ -2,10 +2,13 @@
 
 #include <SDL.h>
 #include <box2d.h>
+#include "SDL_gamecontroller.h"
 
 
 SDL_Renderer* SDL_CreateRenderer(SDL_Window* window, int index, Uint32 flags);
 SDL_Texture* SDL_CreateTextureFromSurface(SDL_Renderer* renderer, SDL_Surface* surface);
+
+Input input;
 
 static SDL_Texture* LoadTexture(std::string filePath, SDL_Renderer* renderTarget) {
 	SDL_Texture* texture = nullptr;
@@ -83,7 +86,80 @@ float timeStep = 1.0f / 60.0f;
 int32 velocityIterations = 8;
 int32 positionIterations = 3;
 
+InputEnum Input::mapSDLKeyToInputEnum(SDL_Keycode key) {
+	switch (key) {
+	case SDLK_w: return InputEnum::North;
+	case SDLK_s: return InputEnum::South;
+	case SDLK_a: return InputEnum::West;
+	case SDLK_d: return InputEnum::East;
+	case SDLK_UP: return InputEnum::DNorth;
+	case SDLK_DOWN: return InputEnum::DSouth;
+	case SDLK_LEFT: return InputEnum::DWest;
+	case SDLK_RIGHT: return InputEnum::DEast;
+		// Add more mappings as needed
+	default: return InputEnum::LeftThumbstick; // Default case
+	}
+}
 
+InputEnum Input::mapSDLButtonToInputEnum(Uint8 button) {
+	switch (button) {
+	case SDL_CONTROLLER_BUTTON_A: return InputEnum::ButtonA;
+	case SDL_CONTROLLER_BUTTON_B: return InputEnum::ButtonB;
+	case SDL_CONTROLLER_BUTTON_X: return InputEnum::ButtonX;
+	case SDL_CONTROLLER_BUTTON_Y: return InputEnum::ButtonY;
+		// Add more mappings as needed
+	default: return InputEnum::LeftThumbstick; // Default case
+	}
+}
+
+InputEnum Input::getKeyPressed() {
+	SDL_Event event;
+	while (SDL_PollEvent(&event)) {
+		if (event.type == SDL_KEYDOWN) {
+			return mapSDLKeyToInputEnum(event.key.keysym.sym);
+		}
+		if (event.type == SDL_CONTROLLERBUTTONDOWN) {
+			return mapSDLButtonToInputEnum(event.cbutton.button);
+		}
+	}
+	return inputEnum; // Return the current inputEnum if no key is pressed
+}
+
+void Input::setGameController(SDL_GameController* controller) {
+	gameController = controller;
+}
+
+bool Input::IsGamepadButtonPressed(GamepadButton button, bool singleClick) {
+	if (!gameController) return false;
+
+	SDL_GameControllerButton sdlButton;
+	switch (button) {
+	case GamepadButton::A: sdlButton = SDL_CONTROLLER_BUTTON_A; break;
+	case GamepadButton::B: sdlButton = SDL_CONTROLLER_BUTTON_B; break;
+	case GamepadButton::X: sdlButton = SDL_CONTROLLER_BUTTON_X; break;
+	case GamepadButton::Y: sdlButton = SDL_CONTROLLER_BUTTON_Y; break;
+	case GamepadButton::DPadLeft: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_LEFT; break;
+	case GamepadButton::DPadRight: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_RIGHT; break;
+	case GamepadButton::DPadUp: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_UP; break;
+	case GamepadButton::DPadDown: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_DOWN; break;
+	default: return false;
+	}
+
+	static std::map<GamepadButton, bool> buttonState;
+	bool isPressed = SDL_GameControllerGetButton(gameController, sdlButton) != 0;
+
+	if (singleClick) {
+		if (isPressed && !buttonState[button]) {
+			buttonState[button] = true;
+			return true;
+		}
+		if (!isPressed) {
+			buttonState[button] = false;
+		}
+		return false;
+	}
+	return isPressed;
+}
 
 namespace GameEngine {
 
@@ -189,6 +265,8 @@ namespace GameEngine {
 				}
 			}
 
+
+			
 			b2Body* bodyList = world.GetBodyList();
 
 			std::vector<b2Body*> bodiesToDestroy;
@@ -411,13 +489,16 @@ namespace GameEngine {
 		SDL_GameController* controller;
 		int i;
 
-		SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
+		SDL_Init(SDL_INIT_VIDEO );
 
+		SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
+		
 		for (i = 0; i < SDL_NumJoysticks(); ++i) {
 			if (SDL_IsGameController(i)) {
 				char* mapping;
 				std::cout << "Index '" << i << "' is a compatible controller, named '" << SDL_GameControllerNameForIndex(i) << "'" << std::endl;
 				controller = SDL_GameControllerOpen(i);
+				input.setGameController(controller);
 				mapping = SDL_GameControllerMapping(controller);
 				std::cout << "Controller " << i << " is mapped as \"" << mapping << std::endl;
 				SDL_free(mapping);
@@ -431,8 +512,6 @@ namespace GameEngine {
 
 
 		Update();
-
-
 	}
 
 	void Engine::setLevel(GameLevel level)
@@ -461,6 +540,7 @@ void GameObject::Destroy()
 	toBeDeleted = true;
 }
 
+
 void GameLevel::addObject(GameObject* obj)
 {
 	levelObjects.push_back(obj);
@@ -472,3 +552,5 @@ int Animation::GetSpriteWidth()
 	int ret = animationRect.w / tilemapSize.w;
 	return ret;
 }
+
+
