@@ -220,50 +220,50 @@ namespace GameEngine {
 			}
 
 			for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i) {
-				for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i) {
-					// Delete GameObjects
-					if (getLevel().levelObjects[i]->toBeDeleted == true) {
-						getLevel().levelObjects[i]->OnDestroyed();
-						b2DestroyBody(*getLevel().levelObjects[i]->bodyId);
-						delete getLevel().levelObjects[i]->bodyDef;
-						delete getLevel().levelObjects[i]->bodyId;
-						delete getLevel().levelObjects[i];
-						getLevel().levelObjects.erase(getLevel().levelObjects.begin() + i);
-					}
-
-					// Create GameObjects
-					else if (getLevel().levelObjects[i]->toBeCreated == true) {
-						float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
-						float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
-
-						getLevel().levelObjects[i]->toBeCreated = false;
-						b2BodyDef* bodyDef = new b2BodyDef;
-						*bodyDef = b2DefaultBodyDef();
-						bodyDef->type = b2_dynamicBody;
-						bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
-						bodyDef->isBullet = getLevel().levelObjects[i]->isBullet;
-						bodyDef->userData = getLevel().levelObjects[i];
-						b2BodyId* bodyId = new b2BodyId;
-						*bodyId = b2CreateBody(worldId, bodyDef);
-
-						b2Polygon dynamicBox = b2MakeBox(bodyWidth / 2.0f, bodyHeight / 2.0f);
-						b2ShapeDef shapeDef = b2DefaultShapeDef();
-						shapeDef.density = 1.0f;
-						shapeDef.friction = 0.3f;
-						shapeDef.enableSensorEvents = getLevel().levelObjects[i]->hasSense;
-						shapeDef.isSensor = getLevel().levelObjects[i]->hasSense;
-						shapeDef.userData = getLevel().levelObjects[i];
-
-						b2ShapeId shapeId = b2CreatePolygonShape(*bodyId, &shapeDef, &dynamicBox);
-
-						getLevel().levelObjects[i]->bodyId = bodyId;
-						getLevel().levelObjects[i]->bodyDef = bodyDef;
-					}
+				// Delete GameObjects
+				if (getLevel().levelObjects[i]->toBeDeleted == true) {
+					getLevel().levelObjects[i]->OnDestroyed();
+					b2DestroyBody(*getLevel().levelObjects[i]->bodyId);
+					delete getLevel().levelObjects[i]->bodyDef;
+					delete getLevel().levelObjects[i]->bodyId;
+					delete getLevel().levelObjects[i];
+					getLevel().levelObjects.erase(getLevel().levelObjects.begin() + i);
 				}
 			}
 
+            for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
+				if (getLevel().levelObjects[i]->toBeCreated == true) {
+					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
+					float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
+
+					getLevel().levelObjects[i]->toBeCreated = false;
+					b2BodyDef* bodyDef = new b2BodyDef;
+					*bodyDef = b2DefaultBodyDef();
+					bodyDef->type = b2_dynamicBody;
+					bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
+					bodyDef->isBullet = getLevel().levelObjects[i]->isBullet;
+					bodyDef->userData = getLevel().levelObjects[i];
+					b2BodyId* bodyId = new b2BodyId;
+					*bodyId = b2CreateBody(worldId, bodyDef);
+
+					b2Polygon dynamicBox = b2MakeBox(bodyWidth / 2.0f, bodyHeight / 2.0f);
+					b2ShapeDef shapeDef = b2DefaultShapeDef();
+					shapeDef.density = 1.0f;
+					shapeDef.friction = 0.3f;
+					shapeDef.enableSensorEvents = getLevel().levelObjects[i]->hasSense;
+					shapeDef.isSensor = getLevel().levelObjects[i]->hasSense;
+					shapeDef.userData = getLevel().levelObjects[i];
+
+					b2ShapeId shapeId = b2CreatePolygonShape(*bodyId, &shapeDef, &dynamicBox);
+
+					getLevel().levelObjects[i]->bodyId = bodyId;
+					getLevel().levelObjects[i]->bodyDef = bodyDef;
+				}
+			}
+
+
 			//Manage Created Objects
-			for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i) {
+			for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
 				if (getLevel().levelObjects[i]->toBeCreated == false)
 				{
 					getLevel().levelObjects[i]->OnUpdate();
