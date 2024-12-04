@@ -94,7 +94,7 @@ public:
 class missile : public GameObject {
 public:
 
-	missile(bool visibility = true, bool isBullet = true, bool hasSense = true)
+	missile(bool visibility = true, bool isBullet = false, bool hasSense = true)
 		: GameObject(visibility, isBullet, hasSense) {
 	}
 
@@ -292,7 +292,7 @@ public:
 
 		checkDamageFeedback();
 
-		if (position.y > 480) {
+		if (position.x > 700) {
 			Destroy();
 		}
 

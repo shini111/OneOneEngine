@@ -60,7 +60,7 @@ b2WorldDef worldDef = b2DefaultWorldDef();
 b2WorldId worldId = b2CreateWorld(&worldDef);
 
 float timeStep = 1.0f / 60.0f;
-int subStepCount = 4;
+int subStepCount = 8;
 // int32 velocityIterations = 8;
 // int32 positionIterations = 3;
 
@@ -251,6 +251,7 @@ namespace GameEngine {
 						shapeDef.density = 1.0f;
 						shapeDef.friction = 0.3f;
 						shapeDef.enableSensorEvents = getLevel().levelObjects[i]->hasSense;
+						shapeDef.isSensor = getLevel().levelObjects[i]->hasSense;
 						shapeDef.userData = getLevel().levelObjects[i];
 
 						b2ShapeId shapeId = b2CreatePolygonShape(*bodyId, &shapeDef, &dynamicBox);
@@ -285,7 +286,7 @@ namespace GameEngine {
 							}
 							catch (const std::exception& e) {
 								std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
-								__debugbreak(); // Optional: Trigger a breakpoint for debugging
+								__debugbreak();
 							}
 						}
 					}
@@ -428,7 +429,22 @@ namespace GameEngine {
 					isRunning = false;
 				}
 			}
-		}
+
+			//You can use this to debug the player position, i was using this to test if the box2d setup was working 
+			// and it seems to be updating the box2d variables correctly
+			//Debug player position
+			//std::cout << "Position: " << getLevel().levelObjects[2]->bodyDef->position.x << " " << getLevel().levelObjects[2]->bodyDef->position.y << std::endl;
+			//Debug player group
+			//std::cout << "Position: " << static_cast<GameObject*>(getLevel().levelObjects[2]->bodyDef->userData)->objectGroup << std::endl;
+			
+			//Debug enemy position - Always debugs one of the enemies positions. I was using this to test if the box2d setup was working
+			// on new objects created after the game started and it seems to be working correctly, so the problem is related to the sensor itself i think
+			if (getLevel().levelObjects.size() > 4)
+			{
+				std::cout << "Position: " << getLevel().levelObjects[3]->bodyDef->position.x << " " << getLevel().levelObjects[3]->bodyDef->position.y << std::endl;
+			}
+
+}
 
 		SDL_DestroyWindow(window);
 		SDL_DestroyRenderer(renderTarget);
@@ -497,6 +513,12 @@ namespace GameEngine {
 	void Engine::sensorListener()
 	{
 		b2SensorEvents sensorEvents = b2World_GetSensorEvents(worldId);
+		if (sensorEvents.beginCount > 0)
+		{
+			std::cout << "Sensor Events Begin Count: " << sensorEvents.beginCount << std::endl;
+
+		}
+
 		for (int i = 0; i < sensorEvents.beginCount; ++i)
 		{
 			b2SensorBeginTouchEvent* beginTouch = sensorEvents.beginEvents + i;
@@ -511,7 +533,7 @@ namespace GameEngine {
 				{
 					GameObject* m2 = static_cast<GameObject*>(myUserData2);
 					m->OnCollideEnter(*m2);
-					std::cout << "Sensor" << std::endl;
+					std::cout << "Sensor detected collision with object group: " << m2->objectGroup << std::endl;
 				}
 			}
 		}
