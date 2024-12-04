@@ -2,9 +2,16 @@
 #include <string>
 #include "Animator.h"
 
+typedef struct b2BodyId;
+typedef struct b2BodyDef;
+
 class GameObject
 {
 public:
+	GameObject(bool visibility, bool isBullet, bool hasSense)
+			: visible(visibility), isBullet(isBullet), hasSense(hasSense) {
+	}
+
 	Animation animation;
 
 	struct {
@@ -26,6 +33,8 @@ public:
 	float rotation = 0;
 
 	bool visible = true;
+	bool isBullet = false;
+	bool hasSense = false;
 
 	virtual void OnStart() {};
 	virtual void OnUpdate() {};
@@ -36,13 +45,18 @@ public:
 
 	std::string objectGroup;
 
+	b2BodyId* bodyId;
+	b2BodyDef* bodyDef;
+
+	bool toBeCreated = true;
 	bool toBeDeleted = false;
-
-
 };
 
 class Pawn : public GameObject
 {
 public:
+	Pawn(bool visibility = true, bool isBullet = false, bool hasSense = true)
+		: GameObject(visibility, isBullet, hasSense) {
+	}
 	float movementSpeed = 150.0f;
 };

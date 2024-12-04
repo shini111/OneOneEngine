@@ -106,7 +106,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Dependencies\SDL2\include;$(SolutionDir)Engine\Dependencies\box2d-main\include\box2d;$(SolutionDir)Engine\Dependencies\glad\include;$(SolutionDir)Engine\Dependencies\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Engine\Dependencies\SDL2\include;$(SolutionDir)Engine\Dependencies\box2d-main\include;$(SolutionDir)Engine\Dependencies\glad\include;$(SolutionDir)Engine\Dependencies\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>Default</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

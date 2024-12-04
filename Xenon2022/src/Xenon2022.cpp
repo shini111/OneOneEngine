@@ -4,7 +4,6 @@
 #undef main
 
 GameEngine::Engine engine;
-Input input;
 float globalRotation = 0.0f;
 
 //To use this fuction we just call *GetGlobalRotation() and get the value of the global rotation
@@ -14,6 +13,10 @@ float* GetGlobalRotation() {
 
 class Enemy : public GameObject {
 public:
+	Enemy(bool visibility = true, bool isBullet = false, bool hasSense = false)
+		: GameObject(visibility, isBullet, hasSense) {
+	}
+
 	int healthPoints = 1;
 
 	void showDamageFeedback() {
@@ -71,6 +74,8 @@ private:
 };
 class explosion : public GameObject {
 public:
+	explosion(bool visibility = true, bool isBullet = false, bool hasSense = false)
+		: GameObject(visibility, isBullet, hasSense) {}
 
 	void OnStart() override {
 
@@ -88,6 +93,11 @@ public:
 
 class missile : public GameObject {
 public:
+
+	missile(bool visibility = true, bool isBullet = true, bool hasSense = true)
+		: GameObject(visibility, isBullet, hasSense) {
+	}
+
 	float moveSpeed = -250.0f;
 
 	int firePower = 0;
@@ -146,6 +156,12 @@ public:
 
 class rusher : public Enemy {
 public:
+
+	rusher(bool visibility = true, bool isBullet = false, bool hasSense = true)
+		: Enemy(visibility, isBullet, hasSense) {
+	}
+
+
 	float moveSpeed = -150.0f;
 	void OnStart() override {
 		healthPoints = 2;
@@ -194,6 +210,10 @@ public:
 
 class enemyProjectile : public GameObject {
 public:
+	enemyProjectile(bool visibility = true, bool isBullet = true, bool hasSense = true)
+		: GameObject(visibility, isBullet, hasSense) {
+	}
+
 	float moveSpeed = -250.0f;
 
 	void OnStart() override {
@@ -217,6 +237,11 @@ public:
 
 class loner : public Enemy {
 public:
+
+	loner(bool visibility = true, bool isBullet = false, bool hasSense = true)
+		: Enemy(visibility, isBullet, hasSense) {
+	}
+
 	float moveSpeed = 70.0f;
 	float time = 0.0f;
 	float timeCooldown = 2.0f;
@@ -237,7 +262,8 @@ public:
 	void OnCollideEnter(GameObject& contact) override {
 		if (contact.objectGroup == "bullet") {
 
-			explosion* boom = new explosion();
+			explosion* boom = new explosion(true, false, false);
+
 			boom->position.x = position.x;
 			boom->position.y = position.y;
 			engine.getLevel().addObject(boom);
@@ -276,7 +302,9 @@ public:
 
 class ally : public Pawn {
 public:
-
+	ally(bool visibility = true, bool isBullet = false, bool hasSense = false)
+		: Pawn(visibility, isBullet, hasSense) {
+	}
 	int shipHealthMax = 5;
 	int shipHealth = 5;
 
@@ -310,25 +338,20 @@ public:
 			damageCooldown = 0;
 		}
 	}
-
 	void ShootCheck() {
-
-		if (GetAsyncKeyState(input.ShootAction[0]) & 0x8000) {
+		if (input.IsGamepadButtonPressed(GamepadButton::A, false)) {
 			if (!keyPressed) {
-				missile* bullet = new missile();
+				missile* bullet = new missile(true, true, true);
 				bullet->position.x = position.x + bulletOffset.x;
 				bullet->position.y = position.y + bulletOffset.y;
 				bullet->firePower = firePower;
 				engine.getLevel().addObject(bullet);
-
 				keyPressed = true;
 			}
 		}
-		else
-		{
+		else {
 			keyPressed = false;
 		}
-
 	};
 private:
 	float damageCooldownDefault = 1;
@@ -337,6 +360,9 @@ private:
 
 class spaceship : public ally {
 public:
+	spaceship(bool visibility = true, bool isBullet = false, bool hasSense = true)
+		: ally(visibility, isBullet, hasSense) {
+	}
 
 	std::string currentAnimation = "";
 	int animationState = 0;
@@ -376,32 +402,24 @@ public:
 			ShootCheck();
 			checkDamageCooldown();
 
-			if (GetKeyState(input.MoveLeft[0]) & 0x8000)
-			{
+			if (input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false)) {
 				position.x -= movementSpeed * engine.deltaTime;
 			}
-			else if (GetKeyState(input.MoveRight[0]) & 0x8000)
-			{
+			else if (input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
 				position.x += movementSpeed * engine.deltaTime;
-
 			}
 
-
-			if (GetKeyState(input.MoveUp[0]) & 0x8000)
-			{
+			if (input.IsGamepadButtonPressed(GamepadButton::DPadUp, false)) {
 				position.y -= movementSpeed * engine.deltaTime;
 				animationState = 1;
 			}
-			else if (GetKeyState(input.MoveDown[0]) & 0x8000)
-			{
+			else if (input.IsGamepadButtonPressed(GamepadButton::DPadDown, false)) {
 				position.y += movementSpeed * engine.deltaTime;
 				animationState = 2;
 			}
-			else
-			{
+			else {
 				animationState = 0;
 			}
-
 		}
 
 		if (animationState == 1 && currentAnimation != "Up")
@@ -453,12 +471,16 @@ public:
 class rusherSpawner : public GameObject
 {
 public:
+	rusherSpawner(bool visibility = false, bool isBullet = false, bool hasSense = false)
+		: GameObject(visibility, isBullet, hasSense) {
+	}
+
 	float spawnCooldown = 2.0f;
 	float time = 0.0f;
 	void OnUpdate() override {
 		time += 1 * engine.deltaTime;
 		if (time > spawnCooldown) {
-			rusher* enemy = new rusher();
+			rusher* enemy = new rusher(true, false, true);
 
 			enemy->position.x = 400.0f;
 			enemy->position.x = rand() % 540 + 100;
@@ -472,12 +494,16 @@ public:
 class lonerSpawner : public GameObject
 {
 public:
+
+	lonerSpawner(bool visibility = false, bool isBullet = false, bool hasSense = false)
+		: GameObject(visibility, isBullet, hasSense) {
+	}
 	float spawnCooldown = 4.0f;
 	float time = 0.0f;
 	void OnUpdate() override {
 		time += 1 * engine.deltaTime;
 		if (time > spawnCooldown) {
-			loner* enemy = new loner();
+			loner* enemy = new loner(true, false, true);
 			enemy->position.x = -100.0f;
 			enemy->position.y = rand() % 200 + 40;
 			engine.getLevel().addObject(enemy);
@@ -492,14 +518,6 @@ int main()
 	gameWindow.windowName = "Xenon 2000";
 	gameWindow.windowWidth = 640;
 	gameWindow.windowHeight = 480;
-
-	// Input Mapping
-
-	input.ShootAction = { VK_SPACE };
-	input.MoveDown = { VK_DOWN };
-	input.MoveLeft = { VK_LEFT };
-	input.MoveRight = { VK_RIGHT };
-	input.MoveUp = { VK_UP };
 
 	GameLevel level;
 
@@ -526,9 +544,6 @@ int main()
 	lonerSpawner* spawner2 = new lonerSpawner();
 	engine.getLevel().addObject(spawner2);
 
-	engine.getLevel().addObject(ship);
-
-	engine.Initialize(gameWindow);
 	engine.getLevel().addObject(ship);
 
 	engine.Initialize(gameWindow);

@@ -35,5 +35,7 @@ public:
 
 	void setLayerSize(int layerSize);
 	void addObject(GameObject* obj);
+	
+
 };
 
