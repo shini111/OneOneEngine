@@ -1,5 +1,10 @@
 #include "Engine.h"
 #include <random>
+#include <cmath>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 #undef main
 
@@ -146,7 +151,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		position.y += moveSpeed * engine.deltaTime;
+		//position.y += moveSpeed * engine.deltaTime;
 
 		if (position.y < -50) {
 			Destroy();
@@ -161,7 +166,7 @@ public:
 		: Enemy(visibility, isBullet, hasSense) {
 	}
 
-
+	float movementDirection = 0.5 * M_PI;
 	float moveSpeed = -150.0f;
 	void OnStart() override {
 		healthPoints = 2;
@@ -177,7 +182,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		position.y -= moveSpeed * engine.deltaTime;
+// 		//position.y -= moveSpeed * engine.deltaTime;
 
 		if (position.y > 520) {
 			Destroy();
@@ -188,8 +193,6 @@ public:
 
 	void OnCollideEnter(GameObject& contact) override {
 		if (contact.objectGroup == "bullet") {
-
-
 
 			explosion* boom = new explosion();
 			boom->position.x = position.x;
@@ -226,7 +229,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		position.y -= moveSpeed * engine.deltaTime;
+		//position.y -= moveSpeed * engine.deltaTime;
 
 		if (position.y > 500.f) {
 			Destroy();
@@ -288,7 +291,7 @@ public:
 			time = 0;
 		}
 
-		position.x += moveSpeed * engine.deltaTime;
+		//position.x += moveSpeed * engine.deltaTime;
 
 		checkDamageFeedback();
 
@@ -396,31 +399,69 @@ public:
 
 		int textureDimentions[2] = { 7,1 };
 
-
 		if (isGameOver == false)
 		{
 			ShootCheck();
 			checkDamageCooldown();
 
 			if (input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false)) {
-				position.x -= movementSpeed * engine.deltaTime;
+				movementDirection = 0.2f*M_PI;
+				SetVelocity(-movementSpeed, 0);
 			}
 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
-				position.x += movementSpeed * engine.deltaTime;
+				movementDirection = M_PI;
+				SetVelocity(movementSpeed, 0);
+			}
+			else {
+				SetVelocity(0, 0);
 			}
 
 			if (input.IsGamepadButtonPressed(GamepadButton::DPadUp, false)) {
-				position.y -= movementSpeed * engine.deltaTime;
 				animationState = 1;
+				SetVelocity(0, -movementSpeed);
 			}
 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadDown, false)) {
-				position.y += movementSpeed * engine.deltaTime;
 				animationState = 2;
+				SetVelocity(0, movementSpeed);
+			}
+			else if (!input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false) && !input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
+				SetVelocity(0, 0);
 			}
 			else {
 				animationState = 0;
 			}
 		}
+
+// 		if (isGameOver == false)
+//  
+// 		{
+// 			ShootCheck();
+// 			checkDamageCooldown();
+// 
+// 			if (input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false)) {
+// 				//position.x -= movementSpeed * engine.deltaTime;
+// 				SetVelocity(-movementSpeed, 0);
+// 			}
+// 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
+// 				//position.x += movementSpeed * engine.deltaTime;
+// 				SetVelocity(movementSpeed, 0);
+// 			}
+// 
+// 			if (input.IsGamepadButtonPressed(GamepadButton::DPadUp, false)) {
+// 				//position.y -= movementSpeed * engine.deltaTime;
+// 				animationState = 1;
+// 				SetVelocity( 0 ,movementSpeed);
+// 
+// 			}
+// 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadDown, false)) {
+// 				//position.y += movementSpeed * engine.deltaTime;
+// 				animationState = 2;
+// 				SetVelocity(0, movementSpeed * engine.deltaTime);
+// 			}
+// 			else {
+// 				animationState = 0;
+// 			}
+// 		}
 
 		if (animationState == 1 && currentAnimation != "Up")
 		{

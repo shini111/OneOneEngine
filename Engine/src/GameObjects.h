@@ -34,6 +34,7 @@ public:
 	}modulate;
 
 	float rotation = 0;
+	float movementDirection = 0;
 
 	bool visible = true;
 	bool isBullet = false;
@@ -57,6 +58,8 @@ public:
 
 	bool toBeCreated = true;
 	bool toBeDeleted = false;
+
+	void SetVelocity(float vx, float vy);
 };
 
 class Pawn : public GameObject

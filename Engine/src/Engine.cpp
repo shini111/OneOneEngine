@@ -261,6 +261,7 @@ namespace GameEngine {
 					b2BodyDef* bodyDef = new b2BodyDef;
 					*bodyDef = b2DefaultBodyDef();
 					bodyDef->type = b2_dynamicBody;
+					//bodyDef->type = b2_staticBody;
 					bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
 					bodyDef->isBullet = getLevel().levelObjects[i]->isBullet;
 					bodyDef->userData = getLevel().levelObjects[i];
@@ -289,6 +290,9 @@ namespace GameEngine {
 					b2ShapeId* shapeId = new b2ShapeId;
 					*shapeId = b2CreatePolygonShape(*bodyId, shapeDef, dynamicBox);
 
+					
+					b2Body_SetTransform(*bodyId, bodyDef->position, b2MakeRot(getLevel().levelObjects[i]->movementDirection));
+
 					getLevel().levelObjects[i]->bodyId = bodyId;
 					getLevel().levelObjects[i]->bodyDef = bodyDef;
 					getLevel().levelObjects[i]->shapeId = shapeId;
@@ -306,19 +310,21 @@ namespace GameEngine {
 
 			//Manage Created Objects
 			for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
-				if (getLevel().levelObjects[i]->toBeCreated == false)
+				GameObject* obj = getLevel().levelObjects[i];
+
+				if (obj->toBeCreated == false)
 				{
-					getLevel().levelObjects[i]->OnUpdate();
+					obj->OnUpdate();
 
-					Animation* spriteAnimation = &getLevel().levelObjects[i]->animation;
+					Animation* spriteAnimation = &obj->animation;
 					
-					if (i > -1)
+					if (i > 1)
 					{
-						b2BodyDef* bodyDef = getLevel().levelObjects[i]->bodyDef;
+						b2Vec2 position = b2Body_GetPosition(*obj->bodyId);
+						b2Body_SetTransform(*obj->bodyId, position, b2MakeRot(obj->movementDirection));
+						
 
-						if (bodyDef != nullptr) {
-							bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
-						}
+						//obj->SetVelocity(5.0f, 0.0f); // Set velocity to 5 units per second to the right
 
 
 						//WORLD STEP DOESNT MAKE SENSE USING IT IN A OBJECT UPDATE LOOP IT SHOULD BE IN WORLD UPDATE
@@ -664,12 +670,42 @@ namespace GameEngine {
 				}
 			}
 		}
+
+		if (contactEvents.endCount > 0) {
+			std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
+		}
+		for (int i = 0; i < contactEvents.endCount; ++i)
+		{
+			b2ContactEndTouchEvent* endTouch = contactEvents.endEvents + i;
+			void* myUserData = b2Shape_GetUserData(endTouch->shapeIdA);
+			if (myUserData)
+			{
+				GameObject* m = static_cast<GameObject*>(myUserData);
+				std::cout << m->objectGroup << std::endl;
+				void* myUserData2 = b2Shape_GetUserData(endTouch->shapeIdB);
+				std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
+				
+				if (myUserData2)
+				{
+					GameObject* m2 = static_cast<GameObject*>(myUserData2);
+					m->OnCollideEnter(*m2);
+					std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
+				}
+			}
+		}
 	}
 
-	bool PreSolveCallback(b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context) {
-		// Disable the contact to block collision response
-		return false;
-	}
+
+// 	bool Engine::b2OverlapResultFcn(b2ShapeId id) {
+// 		
+// 		GameObject* obj = static_cast<GameObject*>(b2Shape_GetUserData(id));
+// 		if (obj != nullptr && obj->objectGroup)
+// 		{
+// 			return true;
+// 		}
+// 		// continue the query
+// 		return true;
+// 	}
 }
 
 void GameLevel::setLayerSize(int layerSize)
@@ -692,4 +728,11 @@ int Animation::GetSpriteWidth()
 {
 	int ret = animationRect.w / tilemapSize.w;
 	return ret;
+}
+
+void GameObject::SetVelocity(float vx, float vy) {
+	if (bodyId) {
+		b2Vec2 velocity = { vx, vy };
+		b2Body_SetLinearVelocity(*bodyId, velocity);
+	}
 }

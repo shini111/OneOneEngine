@@ -106,7 +106,7 @@ namespace GameEngine {
 	private:
 		void sensorListener();
 		void contactListener();
-		bool PreSolveCallback(b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context);
+		void overlapResult(GameObject* obj);
 		GameLevel mainLevel;
 		GameWindow windowDisplay;
 		int prevTime = currentTime;
