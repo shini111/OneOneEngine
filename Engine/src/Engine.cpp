@@ -266,7 +266,7 @@ namespace GameEngine {
 					//This is a just a workaround for now. I will implement a better way to handle this later, because i need to create
 					//a bool variable for objects for the user to want or not a box2d body but right now i dont have time for that.
 
-				if (i > 1 /*i >= 0*/)
+				if (i > 1)
 				{
 					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
 					float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
@@ -278,7 +278,7 @@ namespace GameEngine {
 					*bodyDef = b2DefaultBodyDef();
 					bodyDef->type = b2_dynamicBody;
 					bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
-					//bodyDef->isBullet = getLevel().levelObjects[i]->isBullet;
+					//bodyDef-> = getLevel().levelObjects[i]->isBullet;
 					bodyDef->userData = getLevel().levelObjects[i];
 
 
@@ -626,7 +626,7 @@ namespace GameEngine {
 		b2ContactEvents contactEvents = b2World_GetContactEvents(worldId);
 
 		if (contactEvents.beginCount > 0) {
-			std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
+			//std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
 		}
 
 		for (int i = 0; i < contactEvents.beginCount; ++i)

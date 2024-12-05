@@ -366,6 +366,8 @@ public:
 		: ally(visibility, isBullet, hasSense) {
 	}
 
+	int textureDimentions[2] = { 7,1 };
+
 	std::string currentAnimation = "";
 	int animationState = 0;
 
@@ -376,7 +378,9 @@ public:
 
 
 	void OnStart() override {
+
 		int textureDimentions[2] = { 7,1 };
+
 
 		shipHealthMax = 5;
 		shipHealth = 5;
@@ -400,47 +404,43 @@ public:
 
 	void OnUpdate() override {
 
-		int textureDimentions[2] = { 7,1 };
+
 
 		if (isGameOver == false)
- 
 		{
+
 			ShootCheck();
 			checkDamageCooldown();
 
 			if (input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false)) {
 				position.x -= movementSpeed * engine.deltaTime;
 				animationState = 2;
-
 			}
 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
 				position.x += movementSpeed * engine.deltaTime;
 				animationState = 1;
-
 			}
 			else {
 				animationState = 0;
 			}
 			if (input.IsGamepadButtonPressed(GamepadButton::DPadUp, false)) {
 				position.y -= movementSpeed * engine.deltaTime;
-
 			}
 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadDown, false)) {
 				position.y += movementSpeed * engine.deltaTime;
 			}
-
 		}
 
-		if (animationState == 1 && currentAnimation != "Up")
+		if (animationState == 1 && currentAnimation != "Right")
 		{
-			currentAnimation = "Up";
+			currentAnimation = "Right";
 
 			animation = Animation("resources/graphics/Ship1.bmp", 0.1f, textureDimentions, false, { AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0) });
 			animation.spriteIndex = 0;
 		}
-		else if (animationState == 2 && currentAnimation != "Down")
+		else if (animationState == 2 && currentAnimation != "Left")
 		{
-			currentAnimation = "Down";
+			currentAnimation = "Left";
 			animation = Animation("resources/graphics/Ship1.bmp", 0.1f, textureDimentions, false, { AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0) });
 			animation.spriteIndex = 0;
 		}
@@ -460,17 +460,58 @@ public:
 		}
 	}
 
+
 	void OnCollideEnter(GameObject& contact) override {
+
+		int textureDimentions[2] = { 7,3 };
+
 		if (contact.objectGroup == "enemyBullet") {
 			explosion* boom = new explosion();
 			boom->position.x = position.x;
 			boom->position.y = position.y;
+			if (animationState == 1 && currentAnimation != "Right")
+			{
+				currentAnimation = "Up";
+
+				animation = Animation("resources/graphics/Ship2.bmp", 0.1f, textureDimentions, false,
+					{
+					AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0), AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0), AnimationCoord(4,0),AnimationCoord(5,0),AnimationCoord(6,0),
+					AnimationCoord(6,1),AnimationCoord(6,1),AnimationCoord(6,1), AnimationCoord(4,1),AnimationCoord(5,1),AnimationCoord(6,1), AnimationCoord(4,1),AnimationCoord(5,1),AnimationCoord(6,1),
+					AnimationCoord(6,2),AnimationCoord(6,2),AnimationCoord(6,2), AnimationCoord(4,2),AnimationCoord(5,2),AnimationCoord(6,2), AnimationCoord(4,2),AnimationCoord(5,2),AnimationCoord(6,2)
+					}
+				);
+				animation.spriteIndex = 0;
+			}
+			else if (animationState == 2 && currentAnimation != "Left")
+			{
+				currentAnimation = "Down";
+				animation = Animation("resources/graphics/Ship2.bmp", 0.1f, textureDimentions, false,
+					{
+					AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0) , AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0), AnimationCoord(2,0),AnimationCoord(1,0),AnimationCoord(0,0),
+					AnimationCoord(2,1),AnimationCoord(1,1),AnimationCoord(0,1), AnimationCoord(2,1),AnimationCoord(1,1),AnimationCoord(0,1), AnimationCoord(2,1),AnimationCoord(1,1),AnimationCoord(0,1),
+					AnimationCoord(2,2),AnimationCoord(1,2),AnimationCoord(0,2), AnimationCoord(2,2),AnimationCoord(1,2),AnimationCoord(0,2), AnimationCoord(2,2),AnimationCoord(1,2),AnimationCoord(0,2)
+					}
+				);
+				animation.spriteIndex = 0;
+			}
+			else if (animationState == 0 && currentAnimation != "Idle")
+			{
+				currentAnimation = "Idle";
+				animation = Animation("resources/graphics/Ship1.bmp", 0.1f, textureDimentions, false,
+					{
+						AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2)
+					}
+				);
+				animation.spriteIndex = 0;
+			}
 			engine.getLevel().addObject(boom);
 			TakeShipDamage();
 			contact.Destroy();
 		}
 
 		if (contact.objectGroup == "enemy") {
+			animation = Animation("resources/graphics/Ship2.bmp", 0.1f, textureDimentions, false, { AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2),AnimationCoord(3,0), AnimationCoord(3,1), AnimationCoord(3,2) });
+			animation.spriteIndex = 0;
 			TakeShipDamage();
 		}
 	}
