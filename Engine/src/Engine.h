@@ -106,7 +106,7 @@ namespace GameEngine {
 	private:
 		void sensorListener();
 		void contactListener();
-		void overlapResult(GameObject* obj);
+
 		GameLevel mainLevel;
 		GameWindow windowDisplay;
 		int prevTime = currentTime;

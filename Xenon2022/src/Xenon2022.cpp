@@ -325,6 +325,7 @@ public:
 	void TakeShipDamage() {
 		if (damageCooldown <= 0)
 		{
+			std::cout << "Ship Damaged" << std::endl;
 			shipHealth -= 1;
 			damageCooldown = damageCooldownDefault;
 		}

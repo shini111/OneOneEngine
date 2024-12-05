@@ -60,7 +60,7 @@ b2WorldDef worldDef = b2DefaultWorldDef();
 b2WorldId worldId = b2CreateWorld(&worldDef);
 
 float timeStep = 1.0f / 60.0f;
-int subStepCount = 4;
+int subStepCount = 2;
 // int32 velocityIterations = 8;
 // int32 positionIterations = 3;
 
@@ -273,33 +273,38 @@ namespace GameEngine {
 					bodyWidth = bodyWidth / 2.0f;
 					bodyHeight = bodyHeight / 2.0f;
 
-
+					
 					b2BodyDef* bodyDef = new b2BodyDef;
 					*bodyDef = b2DefaultBodyDef();
 					bodyDef->type = b2_dynamicBody;
-					//bodyDef->type = b2_staticBody;
 					bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
-					bodyDef->isBullet = getLevel().levelObjects[i]->isBullet;
+					//bodyDef->isBullet = getLevel().levelObjects[i]->isBullet;
 					bodyDef->userData = getLevel().levelObjects[i];
-					bodyDef->isEnabled = true;
-					bodyDef->isAwake = true;
+
+
 					b2BodyId* bodyId = new b2BodyId;
 					*bodyId = b2CreateBody(worldId, bodyDef);
 
+					b2Vec2 bodyCenter{ bodyWidth, bodyHeight };
+					float angle = 4.0f;
 
 					b2Polygon* dynamicBox = new b2Polygon;
-					*dynamicBox = b2MakeBox(bodyWidth, bodyHeight);
+					//*dynamicBox = b2MakeBox(bodyWidth, bodyHeight);
+					*dynamicBox = b2MakeOffsetBox(bodyWidth, bodyHeight, bodyCenter, b2MakeRot(angle * b2_pi));
+
 
 					b2ShapeDef* shapeDef = new b2ShapeDef;
 					*shapeDef = b2DefaultShapeDef();
 					shapeDef->density = 1.0f;
 					shapeDef->friction = 0.3f;
 
-					shapeDef->enableSensorEvents = getLevel().levelObjects[i]->hasSense;
-					shapeDef->enableSensorEvents = true;
-					shapeDef->isSensor = getLevel().levelObjects[i]->hasSense;
+					//shapeDef->enableSensorEvents = getLevel().levelObjects[i]->hasSense;
 
-					shapeDef->enableContactEvents = true;
+					//shapeDef->enableSensorEvents = true;
+					//shapeDef->isSensor = getLevel().levelObjects[i]->hasSense;
+
+					//shapeDef->enableContactEvents = true;
+
 					shapeDef->userData = getLevel().levelObjects[i];
 
 					shapeDef->enableContactEvents = true;
@@ -312,28 +317,9 @@ namespace GameEngine {
 					getLevel().levelObjects[i]->shapeId = shapeId;
 					getLevel().levelObjects[i]->shapeDef = shapeDef;
 					getLevel().levelObjects[i]->boxCollision = dynamicBox;
-
 				}
 				
 				//WORLD STEP DOESNT MAKE SENSE USING IT IN A OBJECT UPDATE LOOP IT SHOULD BE IN WORLD UPDATE
-				for (int32_t i = 0; i < 90; ++i) {
-					if (B2_IS_NULL(worldId) != 0) {
-						std::cerr << "Invalid worldId detected." << std::endl;
-						break;
-					}
-					else {
-						try {
-							b2World_Step(worldId, timeStep, subStepCount);
-							sensorListener();
-							//contactListener();
-						}
-						catch (const std::exception& e) {
-							std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
-							__debugbreak();
-						}
-					}
-				}
-
 				
 
 // 				b2World_Step(worldId, timeStep, subStepCount);
@@ -490,6 +476,27 @@ namespace GameEngine {
 				
 			}
 
+			b2World_Step(worldId, timeStep, subStepCount);
+			contactListener();
+
+// 			for (int32_t i = 0; i < 60; ++i) {
+// 				if (B2_IS_NULL(worldId) != 0) {
+// 					std::cerr << "Invalid worldId detected." << std::endl;
+// 					break;
+// 				}
+// 				else {
+// 					try {
+// 						b2World_Step(worldId, timeStep, subStepCount);
+// 						contactListener();
+// 						//sensorListener();
+// 					}
+// 					catch (const std::exception& e) {
+// 						std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
+// 						__debugbreak();
+// 					}
+// 				}
+// 			}
+
 			SDL_RenderPresent(renderTarget);
 
 			while (SDL_PollEvent(&event) != 0) {
@@ -600,6 +607,7 @@ namespace GameEngine {
 				GameObject* m = static_cast<GameObject*>(myUserData);
 
 				void* myUserData2 = b2Shape_GetUserData(beginTouch->sensorShapeId);
+				std::cout << "Sensor detected collision with object group: " << m->objectGroup << std::endl;
 
 				if (myUserData2)
 				{
@@ -607,7 +615,7 @@ namespace GameEngine {
 					m->OnCollideEnter(*m2);
 					if (m2->objectGroup == "player")
 					{
-						std::cout << "Sensor detected collision with object group: " << m->objectGroup << std::endl;
+						std::cout << "Sensor detected collision with object group: " << m2->objectGroup << std::endl;
 					}
 				}
 			}
@@ -620,6 +628,7 @@ namespace GameEngine {
 		if (contactEvents.beginCount > 0) {
 			std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
 		}
+
 		for (int i = 0; i < contactEvents.beginCount; ++i)
 		{
 			b2ContactBeginTouchEvent* beginTouch = contactEvents.beginEvents + i;
@@ -627,38 +636,15 @@ namespace GameEngine {
 			if (myUserData)
 			{
 				GameObject* m = static_cast<GameObject*>(myUserData);
-				std::cout << m->objectGroup << std::endl;
+				//std::cout << m->objectGroup << std::endl;
 				void* myUserData2 = b2Shape_GetUserData(beginTouch->shapeIdB);
-				std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
+				//std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
 				
 				if (myUserData2)
 				{
 					GameObject* m2 = static_cast<GameObject*>(myUserData2);
 					m->OnCollideEnter(*m2);
-					std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
-				}
-			}
-		}
-
-		if (contactEvents.endCount > 0) {
-			std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
-		}
-		for (int i = 0; i < contactEvents.endCount; ++i)
-		{
-			b2ContactEndTouchEvent* endTouch = contactEvents.endEvents + i;
-			void* myUserData = b2Shape_GetUserData(endTouch->shapeIdA);
-			if (myUserData)
-			{
-				GameObject* m = static_cast<GameObject*>(myUserData);
-				std::cout << m->objectGroup << std::endl;
-				void* myUserData2 = b2Shape_GetUserData(endTouch->shapeIdB);
-				std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
-				
-				if (myUserData2)
-				{
-					GameObject* m2 = static_cast<GameObject*>(myUserData2);
-					m->OnCollideEnter(*m2);
-					std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
+					//std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
 				}
 			}
 		}
