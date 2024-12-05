@@ -13,9 +13,6 @@ SDL_Texture* SDL_CreateTextureFromSurface(SDL_Renderer* renderer, SDL_Surface* s
 
 Input input;
 
-b2DebugDraw debugDraw;
-
-
 static SDL_Texture* LoadTexture(std::string filePath, SDL_Renderer* renderTarget) {
 	SDL_Texture* texture = nullptr;
 	SDL_Surface* surface = SDL_LoadBMP(filePath.c_str());
@@ -155,6 +152,8 @@ namespace GameEngine {
 			prevTime = currentTime;
 			currentTime = SDL_GetTicks();
 			deltaTime = (currentTime - prevTime) / 1000.0f;
+
+
 			for (int i = 0; i < getLevel().background.size(); ++i)
 			{
 				if (getLevel().background[i].scrollingDirection == getLevel().background[i].vertical) {
@@ -222,6 +221,8 @@ namespace GameEngine {
 				SDL_DestroyTexture(background);
 			}
 
+
+
 			// Delete GameObjects
 
 			for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i) {
@@ -243,21 +244,36 @@ namespace GameEngine {
 				}
 			}
 
-			//Create Objects
+			for (int i = getLevel().levelObjects.size()-1; i >= 0; --i)
+			{
+				auto obj = getLevel().levelObjects[i];
+				if (obj->bodyId != nullptr)
+				{
+					b2DestroyBody(*obj->bodyId);
+				}
+			}
+
+			//Manage Created Objects
 			for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
-				if (getLevel().levelObjects[i]->toBeCreated == true) {
-					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
-					float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
-					
-					getLevel().levelObjects[i]->toBeCreated = false;
+				GameObject* obj = getLevel().levelObjects[i];
+
+				obj->OnUpdate();
+
+				Animation* spriteAnimation = &obj->animation;
 
 
-					//THIS IS TO IGNORE SPAWNERS. THE FIRST TWO OBJECTS IN THE LEVEL OBJECTS VECTOR ARE SPAWNERS
+				//THIS IS TO IGNORE SPAWNERS. THE FIRST TWO OBJECTS IN THE LEVEL OBJECTS VECTOR ARE SPAWNERS
 					//This is a just a workaround for now. I will implement a better way to handle this later, because i need to create
 					//a bool variable for objects for the user to want or not a box2d body but right now i dont have time for that.
 
-					if (i > -1 /*i >= 0*/)
-					{
+				if (i > 1 /*i >= 0*/)
+				{
+					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
+					float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
+					bodyWidth = bodyWidth / 2.0f;
+					bodyHeight = bodyHeight / 2.0f;
+
+
 					b2BodyDef* bodyDef = new b2BodyDef;
 					*bodyDef = b2DefaultBodyDef();
 					bodyDef->type = b2_dynamicBody;
@@ -270,28 +286,26 @@ namespace GameEngine {
 					b2BodyId* bodyId = new b2BodyId;
 					*bodyId = b2CreateBody(worldId, bodyDef);
 
+
 					b2Polygon* dynamicBox = new b2Polygon;
-					*dynamicBox = b2MakeBox(bodyWidth / 2.0f, bodyHeight / 2.0f);
+					*dynamicBox = b2MakeBox(bodyWidth, bodyHeight);
 
 					b2ShapeDef* shapeDef = new b2ShapeDef;
 					*shapeDef = b2DefaultShapeDef();
 					shapeDef->density = 1.0f;
 					shapeDef->friction = 0.3f;
 
-					//shapeDef.enableSensorEvents = getLevel().levelObjects[i]->hasSense;
-					//shapeDef.enableSensorEvents = true;
-					//shapeDef.isSensor = getLevel().levelObjects[i]->hasSense;
+					shapeDef->enableSensorEvents = getLevel().levelObjects[i]->hasSense;
+					shapeDef->enableSensorEvents = true;
+					shapeDef->isSensor = getLevel().levelObjects[i]->hasSense;
 
 					shapeDef->enableContactEvents = true;
 					shapeDef->userData = getLevel().levelObjects[i];
-					shapeDef->customColor = 0x0000FF00;
+
 					shapeDef->enableContactEvents = true;
 
 					b2ShapeId* shapeId = new b2ShapeId;
 					*shapeId = b2CreatePolygonShape(*bodyId, shapeDef, dynamicBox);
-
-					
-					b2Body_SetTransform(*bodyId, bodyDef->position, b2MakeRot(getLevel().levelObjects[i]->movementDirection));
 
 					getLevel().levelObjects[i]->bodyId = bodyId;
 					getLevel().levelObjects[i]->bodyDef = bodyDef;
@@ -299,205 +313,181 @@ namespace GameEngine {
 					getLevel().levelObjects[i]->shapeDef = shapeDef;
 					getLevel().levelObjects[i]->boxCollision = dynamicBox;
 
-					}
-					else
-					{
-						std::cout << "Spawners " << i << std::endl;
-					}					
 				}
-			}
+				
+				//WORLD STEP DOESNT MAKE SENSE USING IT IN A OBJECT UPDATE LOOP IT SHOULD BE IN WORLD UPDATE
+				for (int32_t i = 0; i < 90; ++i) {
+					if (B2_IS_NULL(worldId) != 0) {
+						std::cerr << "Invalid worldId detected." << std::endl;
+						break;
+					}
+					else {
+						try {
+							b2World_Step(worldId, timeStep, subStepCount);
+							sensorListener();
+							//contactListener();
+						}
+						catch (const std::exception& e) {
+							std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
+							__debugbreak();
+						}
+					}
+				}
+
+				
+
+// 				b2World_Step(worldId, timeStep, subStepCount);
+// 				sensorListener();
+// 				contactListener();
 
 
-			//Manage Created Objects
-			for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
-				GameObject* obj = getLevel().levelObjects[i];
-
-				if (obj->toBeCreated == false)
-				{
-					obj->OnUpdate();
-
-					Animation* spriteAnimation = &obj->animation;
-					
-					if (i > 1)
-					{
-						b2Vec2 position = b2Body_GetPosition(*obj->bodyId);
-						b2Body_SetTransform(*obj->bodyId, position, b2MakeRot(obj->movementDirection));
-						
-
-						//obj->SetVelocity(5.0f, 0.0f); // Set velocity to 5 units per second to the right
-
-
-						//WORLD STEP DOESNT MAKE SENSE USING IT IN A OBJECT UPDATE LOOP IT SHOULD BE IN WORLD UPDATE
-// 						for (int32_t i = 0; i < 90; ++i) {
-// 							if (B2_IS_NULL(worldId) != 0) {
-// 								std::cerr << "Invalid worldId detected." << std::endl;
-// 								break;
-// 							}
-// 							else {
-// 								try {
-// 									b2World_Step(worldId, timeStep, subStepCount);
-// 									sensorListener();
-// 									contactListener();
-// 								}
-// 								catch (const std::exception& e) {
-// 									std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
-// 									__debugbreak();
-// 								}
-// 							}
+// 				for (int32_t i = 0; i < 90; ++i) {
+// 					if (B2_IS_NULL(worldId) != 0) {
+// 						std::cerr << "Invalid worldId detected." << std::endl;
+// 						break;
+// 					}
+// 					else {
+// 						try {
+// 							b2World_Step(worldId, timeStep, subStepCount);
+// 							sensorListener();
+// 							contactListener();
 // 						}
+// 						catch (const std::exception& e) {
+// 							std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
+// 							__debugbreak();
+// 						}
+// 					}
+// 				}
 
-					}
-					b2World_Step(worldId, timeStep, subStepCount);
-					sensorListener();
-					contactListener();
+				if (spriteAnimation->tilemapPath != "") {
 
+					if (spriteAnimation->manual.empty() == true)
+					{
+						SDL_Texture* sprite = LoadTexture(spriteAnimation->tilemapPath, renderTarget);
 
-					for (int32_t i = 0; i < 90; ++i) {
-						if (B2_IS_NULL(worldId) != 0) {
-							std::cerr << "Invalid worldId detected." << std::endl;
-							break;
-						}
-						else {
-							try {
-								b2World_Step(worldId, timeStep, subStepCount);
-								sensorListener();
-								contactListener();
-							}
-							catch (const std::exception& e) {
-								std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
-								__debugbreak();
-							}
-						}
-					}
-					if (spriteAnimation->tilemapPath != "") {
+						SDL_QueryTexture(sprite, NULL, NULL, &spriteAnimation->textureWidth, &spriteAnimation->textureHeight);
 
-						if (spriteAnimation->manual.empty() == true)
-						{
-							SDL_Texture* sprite = LoadTexture(spriteAnimation->tilemapPath, renderTarget);
+						spriteAnimation->frameWidth = spriteAnimation->textureWidth / spriteAnimation->tilemapSize.w;
+						spriteAnimation->frameHeight = spriteAnimation->textureHeight / spriteAnimation->tilemapSize.h;
 
-							SDL_QueryTexture(sprite, NULL, NULL, &spriteAnimation->textureWidth, &spriteAnimation->textureHeight);
+						spriteAnimation->animationRect.w = spriteAnimation->frameWidth;
+						spriteAnimation->animationRect.h = spriteAnimation->frameHeight;
 
-							spriteAnimation->frameWidth = spriteAnimation->textureWidth / spriteAnimation->tilemapSize.w;
-							spriteAnimation->frameHeight = spriteAnimation->textureHeight / spriteAnimation->tilemapSize.h;
+						SDL_Rect spriteRect;
 
-							spriteAnimation->animationRect.w = spriteAnimation->frameWidth;
-							spriteAnimation->animationRect.h = spriteAnimation->frameHeight;
-
-							SDL_Rect spriteRect;
-
-							SDL_Rect spritePos;
-							spritePos.x = getLevel().levelObjects[i]->position.x;
-							spritePos.y = getLevel().levelObjects[i]->position.y;
-							spritePos.w = spriteAnimation->frameWidth;
-							spritePos.h = spriteAnimation->frameHeight;
+						SDL_Rect spritePos;
+						spritePos.x = getLevel().levelObjects[i]->position.x;
+						spritePos.y = getLevel().levelObjects[i]->position.y;
+						spritePos.w = spriteAnimation->frameWidth;
+						spritePos.h = spriteAnimation->frameHeight;
 
 
-							spriteAnimation->frameTime += deltaTime;
+						spriteAnimation->frameTime += deltaTime;
 
-							if (spriteAnimation->frameTime > spriteAnimation->frameDuration) {
-								spriteAnimation->frameTime = 0;
+						if (spriteAnimation->frameTime > spriteAnimation->frameDuration) {
+							spriteAnimation->frameTime = 0;
 
-								spriteAnimation->animationRect.x += spriteAnimation->frameWidth;
+							spriteAnimation->animationRect.x += spriteAnimation->frameWidth;
 
-								if (spriteAnimation->animationRect.x >= spriteAnimation->textureWidth) {
-									spriteAnimation->animationRect.x = 0;
-									spriteAnimation->animationRect.y += spriteAnimation->frameHeight;
+							if (spriteAnimation->animationRect.x >= spriteAnimation->textureWidth) {
+								spriteAnimation->animationRect.x = 0;
+								spriteAnimation->animationRect.y += spriteAnimation->frameHeight;
 
-									if (spriteAnimation->animationRect.y >= spriteAnimation->textureHeight) {
-										if (spriteAnimation->loop) {
-											spriteAnimation->animationRect.y = 0;
-										}
-										else {
-											spriteAnimation->animationRect.x = spriteAnimation->textureWidth - spriteAnimation->frameWidth;
-											spriteAnimation->animationRect.y = spriteAnimation->textureHeight - spriteAnimation->frameHeight;
-										}
-										getLevel().levelObjects[i]->OnAnimationFinish();
-									}
-								}
-
-							}
-
-							spriteRect.x = spriteAnimation->animationRect.x;
-							spriteRect.y = spriteAnimation->animationRect.y;
-							spriteRect.w = spriteAnimation->animationRect.w;
-							spriteRect.h = spriteAnimation->animationRect.h;
-
-							if (getLevel().levelObjects[i]->visible) {
-
-
-								SDL_Color myColor = { getLevel().levelObjects[i]->modulate.r, getLevel().levelObjects[i]->modulate.g, getLevel().levelObjects[i]->modulate.b,255 };
-
-								SDL_SetTextureColorMod(sprite, myColor.r, myColor.g, myColor.b);
-
-								SDL_RenderCopyEx(renderTarget, sprite, &spriteRect, &spritePos, getLevel().levelObjects[i]->rotation, NULL, SDL_FLIP_NONE);
-							}
-
-							SDL_DestroyTexture(sprite);
-						}
-						else if (spriteAnimation->manual.empty() == false)
-						{
-
-							SDL_Texture* sprite = LoadTexture(spriteAnimation->tilemapPath, renderTarget);
-
-							SDL_QueryTexture(sprite, NULL, NULL, &spriteAnimation->textureWidth, &spriteAnimation->textureHeight);
-
-							spriteAnimation->frameWidth = spriteAnimation->textureWidth / spriteAnimation->tilemapSize.w;
-							spriteAnimation->frameHeight = spriteAnimation->textureHeight / spriteAnimation->tilemapSize.h;
-
-							spriteAnimation->animationRect.w = spriteAnimation->frameWidth;
-							spriteAnimation->animationRect.h = spriteAnimation->frameHeight;
-
-							SDL_Rect spriteRect;
-
-							SDL_Rect spritePos;
-							spritePos.x = getLevel().levelObjects[i]->position.x;
-							spritePos.y = getLevel().levelObjects[i]->position.y;
-							spritePos.w = spriteAnimation->frameWidth;
-							spritePos.h = spriteAnimation->frameHeight;
-
-							spriteAnimation->frameTime += deltaTime;
-
-
-							if (spriteAnimation->frameTime > spriteAnimation->frameDuration)
-							{
-								spriteAnimation->frameTime = 0;
-
-								if (spriteAnimation->spriteIndex < spriteAnimation->manual.size() - 1)
-								{
-									spriteAnimation->spriteIndex++;
-								}
-								else
-								{
+								if (spriteAnimation->animationRect.y >= spriteAnimation->textureHeight) {
 									if (spriteAnimation->loop) {
-										spriteAnimation->spriteIndex = 0;
+										spriteAnimation->animationRect.y = 0;
+									}
+									else {
+										spriteAnimation->animationRect.x = spriteAnimation->textureWidth - spriteAnimation->frameWidth;
+										spriteAnimation->animationRect.y = spriteAnimation->textureHeight - spriteAnimation->frameHeight;
 									}
 									getLevel().levelObjects[i]->OnAnimationFinish();
 								}
 							}
 
-							if (spriteAnimation->spriteIndex < spriteAnimation->manual.size())
-							{
-								spriteAnimation->animationRect.x = spriteAnimation->manual[spriteAnimation->spriteIndex].coordPosition.x * spriteAnimation->frameWidth;
-								spriteAnimation->animationRect.y = spriteAnimation->manual[spriteAnimation->spriteIndex].coordPosition.y * spriteAnimation->frameHeight;
-							}
-
-
-							spriteRect.x = spriteAnimation->animationRect.x;
-							spriteRect.y = spriteAnimation->animationRect.y;
-							spriteRect.w = spriteAnimation->animationRect.w;
-							spriteRect.h = spriteAnimation->animationRect.h;
-
-							if (getLevel().levelObjects[i]->visible) {
-								SDL_Color myColor = { getLevel().levelObjects[i]->modulate.r, getLevel().levelObjects[i]->modulate.g, getLevel().levelObjects[i]->modulate.b,255 };
-
-								SDL_SetTextureColorMod(sprite, myColor.r, myColor.g, myColor.b);
-								SDL_RenderCopyEx(renderTarget, sprite, &spriteRect, &spritePos, getLevel().levelObjects[i]->rotation, NULL, SDL_FLIP_NONE);
-							}
-							SDL_DestroyTexture(sprite);
 						}
-					}
 
+						spriteRect.x = spriteAnimation->animationRect.x;
+						spriteRect.y = spriteAnimation->animationRect.y;
+						spriteRect.w = spriteAnimation->animationRect.w;
+						spriteRect.h = spriteAnimation->animationRect.h;
+
+						if (getLevel().levelObjects[i]->visible) {
+
+
+							SDL_Color myColor = { getLevel().levelObjects[i]->modulate.r, getLevel().levelObjects[i]->modulate.g, getLevel().levelObjects[i]->modulate.b,255 };
+
+							SDL_SetTextureColorMod(sprite, myColor.r, myColor.g, myColor.b);
+
+							SDL_RenderCopyEx(renderTarget, sprite, &spriteRect, &spritePos, getLevel().levelObjects[i]->rotation, NULL, SDL_FLIP_NONE);
+						}
+
+						SDL_DestroyTexture(sprite);
+					}
+					else if (spriteAnimation->manual.empty() == false)
+					{
+
+						SDL_Texture* sprite = LoadTexture(spriteAnimation->tilemapPath, renderTarget);
+
+						SDL_QueryTexture(sprite, NULL, NULL, &spriteAnimation->textureWidth, &spriteAnimation->textureHeight);
+
+						spriteAnimation->frameWidth = spriteAnimation->textureWidth / spriteAnimation->tilemapSize.w;
+						spriteAnimation->frameHeight = spriteAnimation->textureHeight / spriteAnimation->tilemapSize.h;
+
+						spriteAnimation->animationRect.w = spriteAnimation->frameWidth;
+						spriteAnimation->animationRect.h = spriteAnimation->frameHeight;
+
+						SDL_Rect spriteRect;
+
+						SDL_Rect spritePos;
+						spritePos.x = getLevel().levelObjects[i]->position.x;
+						spritePos.y = getLevel().levelObjects[i]->position.y;
+						spritePos.w = spriteAnimation->frameWidth;
+						spritePos.h = spriteAnimation->frameHeight;
+
+						spriteAnimation->frameTime += deltaTime;
+
+
+						if (spriteAnimation->frameTime > spriteAnimation->frameDuration)
+						{
+							spriteAnimation->frameTime = 0;
+
+							if (spriteAnimation->spriteIndex < spriteAnimation->manual.size() - 1)
+							{
+								spriteAnimation->spriteIndex++;
+							}
+							else
+							{
+								if (spriteAnimation->loop) {
+									spriteAnimation->spriteIndex = 0;
+								}
+								getLevel().levelObjects[i]->OnAnimationFinish();
+							}
+						}
+
+						if (spriteAnimation->spriteIndex < spriteAnimation->manual.size())
+						{
+							spriteAnimation->animationRect.x = spriteAnimation->manual[spriteAnimation->spriteIndex].coordPosition.x * spriteAnimation->frameWidth;
+							spriteAnimation->animationRect.y = spriteAnimation->manual[spriteAnimation->spriteIndex].coordPosition.y * spriteAnimation->frameHeight;
+						}
+
+
+						spriteRect.x = spriteAnimation->animationRect.x;
+						spriteRect.y = spriteAnimation->animationRect.y;
+						spriteRect.w = spriteAnimation->animationRect.w;
+						spriteRect.h = spriteAnimation->animationRect.h;
+
+						if (getLevel().levelObjects[i]->visible) {
+							SDL_Color myColor = { getLevel().levelObjects[i]->modulate.r, getLevel().levelObjects[i]->modulate.g, getLevel().levelObjects[i]->modulate.b,255 };
+
+							SDL_SetTextureColorMod(sprite, myColor.r, myColor.g, myColor.b);
+							SDL_RenderCopyEx(renderTarget, sprite, &spriteRect, &spritePos, getLevel().levelObjects[i]->rotation, NULL, SDL_FLIP_NONE);
+						}
+						SDL_DestroyTexture(sprite);
+					}
 				}
+
+				
 			}
 
 			SDL_RenderPresent(renderTarget);
@@ -529,8 +519,6 @@ namespace GameEngine {
 			//Debug collision box size from player its being created with 64 by 64. Its bigger than the other collision that is being detected that has the size of 32x32
 			//std::cout << "Collision Box: " << getLevel().levelObjects[2]->collisionBoxSize.w << " " << getLevel().levelObjects[2]->collisionBoxSize.h << std::endl;
 
-			debugDraw.context = renderTarget;
-			//b2World_Draw(worldId, &debugDraw);
 
 }
 
@@ -579,25 +567,8 @@ namespace GameEngine {
 		window = SDL_CreateWindow(windowSettings.windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowSettings.windowWidth, windowSettings.windowHeight, SDL_WINDOW_OPENGL);
 		renderTarget = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-		debugDraw.context = renderTarget;
-		debugDraw.drawAABBs = true;
-		debugDraw.drawContactImpulses = true;
-		debugDraw.drawContactNormals = true;
-		debugDraw.drawContacts = true;
-		debugDraw.drawFrictionImpulses = true;
-		debugDraw.drawGraphColors = true;
-		debugDraw.drawJointExtras = true;
-		debugDraw.drawJoints = true;
-		debugDraw.drawMass = true;
-		debugDraw.drawShapes = true;
-		debugDraw.useDrawingBounds = false;
-
-		b2World_Draw(worldId , &debugDraw);
 		b2World_EnableContinuous(worldId, true);
 
-
-// 		preSolveCallback PreSolveCallback();
-// 		b2World_SetPreSolveCallback(worldId, PreSolveCallback(), nullptr);
 		Update();
 	}
 
@@ -620,11 +591,6 @@ namespace GameEngine {
 	{
 		b2SensorEvents sensorEvents = b2World_GetSensorEvents(worldId);
 
-		if (sensorEvents.beginCount > 0)
-		{
-			std::cout << "Sensor Events Begin Count: " << sensorEvents.beginCount << std::endl;
-
-		}
 		for (int i = 0; i < sensorEvents.beginCount; ++i)
 		{
 			b2SensorBeginTouchEvent* beginTouch = sensorEvents.beginEvents + i;
@@ -639,7 +605,10 @@ namespace GameEngine {
 				{
 					GameObject* m2 = static_cast<GameObject*>(myUserData2);
 					m->OnCollideEnter(*m2);
-					std::cout << "Sensor detected collision with object group: " << m2->objectGroup << std::endl;
+					if (m2->objectGroup == "player")
+					{
+						std::cout << "Sensor detected collision with object group: " << m->objectGroup << std::endl;
+					}
 				}
 			}
 		}
@@ -730,9 +699,3 @@ int Animation::GetSpriteWidth()
 	return ret;
 }
 
-void GameObject::SetVelocity(float vx, float vy) {
-	if (bodyId) {
-		b2Vec2 velocity = { vx, vy };
-		b2Body_SetLinearVelocity(*bodyId, velocity);
-	}
-}
