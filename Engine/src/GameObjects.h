@@ -4,6 +4,9 @@
 
 typedef struct b2BodyId;
 typedef struct b2BodyDef;
+typedef struct b2ShapeId;
+typedef struct b2ShapeDef;
+typedef struct b2Polygon;
 
 class GameObject
 {
@@ -47,6 +50,10 @@ public:
 
 	b2BodyId* bodyId;
 	b2BodyDef* bodyDef;
+	b2ShapeId* shapeId;
+	b2ShapeDef* shapeDef;
+	b2Polygon* boxCollision;
+
 
 	bool toBeCreated = true;
 	bool toBeDeleted = false;

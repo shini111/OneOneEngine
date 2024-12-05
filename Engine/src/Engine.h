@@ -17,6 +17,9 @@ typedef int SDL_Keycode;
 struct _SDL_GameController;
 typedef _SDL_GameController SDL_GameController;
 
+typedef struct b2ShapeId;
+typedef struct b2Manifold;
+
 // Typedef for Uint8
 typedef unsigned char Uint8;
 enum class InputEnum
@@ -102,6 +105,8 @@ namespace GameEngine {
 		void Initialize(GameWindow windowSettings);
 	private:
 		void sensorListener();
+		void contactListener();
+		bool PreSolveCallback(b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context);
 		GameLevel mainLevel;
 		GameWindow windowDisplay;
 		int prevTime = currentTime;

@@ -360,7 +360,7 @@ private:
 
 class spaceship : public ally {
 public:
-	spaceship(bool visibility = true, bool isBullet = false, bool hasSense = true)
+	spaceship(bool visibility = true, bool isBullet = false, bool hasSense = false)
 		: ally(visibility, isBullet, hasSense) {
 	}
 
@@ -475,8 +475,14 @@ public:
 		: GameObject(visibility, isBullet, hasSense) {
 	}
 
+
 	float spawnCooldown = 2.0f;
 	float time = 0.0f;
+
+	void OnStart() override {
+		objectGroup = "RSpwaner";
+	}
+
 	void OnUpdate() override {
 		time += 1 * engine.deltaTime;
 		if (time > spawnCooldown) {
@@ -494,12 +500,17 @@ public:
 class lonerSpawner : public GameObject
 {
 public:
+	void OnStart() override {
+		objectGroup = "LSpwaner";
 
+		position.x = 0;
+	}
 	lonerSpawner(bool visibility = false, bool isBullet = false, bool hasSense = false)
 		: GameObject(visibility, isBullet, hasSense) {
 	}
 	float spawnCooldown = 4.0f;
 	float time = 0.0f;
+
 	void OnUpdate() override {
 		time += 1 * engine.deltaTime;
 		if (time > spawnCooldown) {
@@ -541,11 +552,20 @@ int main()
 
 	rusherSpawner* spawner = new rusherSpawner();
 	engine.getLevel().addObject(spawner);
+
 	lonerSpawner* spawner2 = new lonerSpawner();
 	engine.getLevel().addObject(spawner2);
 
+
+	rusher* enemy = new rusher(true, false, true);
+
+
 	engine.getLevel().addObject(ship);
 
-	engine.Initialize(gameWindow);
+	enemy->position.x = 400.0f;
+	enemy->position.x = rand() % 540 + 100;
+	enemy->position.y = -100.0f;
+	engine.getLevel().addObject(enemy);
 
+	engine.Initialize(gameWindow);
 }

@@ -13,6 +13,9 @@ SDL_Texture* SDL_CreateTextureFromSurface(SDL_Renderer* renderer, SDL_Surface* s
 
 Input input;
 
+b2DebugDraw debugDraw;
+
+
 static SDL_Texture* LoadTexture(std::string filePath, SDL_Renderer* renderTarget) {
 	SDL_Texture* texture = nullptr;
 	SDL_Surface* surface = SDL_LoadBMP(filePath.c_str());
@@ -60,7 +63,7 @@ b2WorldDef worldDef = b2DefaultWorldDef();
 b2WorldId worldId = b2CreateWorld(&worldDef);
 
 float timeStep = 1.0f / 60.0f;
-int subStepCount = 8;
+int subStepCount = 4;
 // int32 velocityIterations = 8;
 // int32 positionIterations = 3;
 
@@ -219,45 +222,84 @@ namespace GameEngine {
 				SDL_DestroyTexture(background);
 			}
 
+			// Delete GameObjects
+
 			for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i) {
-				// Delete GameObjects
 				if (getLevel().levelObjects[i]->toBeDeleted == true) {
 					getLevel().levelObjects[i]->OnDestroyed();
-					b2DestroyBody(*getLevel().levelObjects[i]->bodyId);
-					delete getLevel().levelObjects[i]->bodyDef;
-					delete getLevel().levelObjects[i]->bodyId;
+
+					if (i > 1)
+					{
+						b2DestroyBody(*getLevel().levelObjects[i]->bodyId);
+						delete getLevel().levelObjects[i]->bodyDef;
+						delete getLevel().levelObjects[i]->bodyId;
+					}
+					else
+					{
+						std::cout << "Spawner delete" << i << std::endl;
+					}
 					delete getLevel().levelObjects[i];
 					getLevel().levelObjects.erase(getLevel().levelObjects.begin() + i);
 				}
 			}
 
-            for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
+			//Create Objects
+			for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
 				if (getLevel().levelObjects[i]->toBeCreated == true) {
 					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
 					float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
-
+					
 					getLevel().levelObjects[i]->toBeCreated = false;
+
+
+					//THIS IS TO IGNORE SPAWNERS. THE FIRST TWO OBJECTS IN THE LEVEL OBJECTS VECTOR ARE SPAWNERS
+					//This is a just a workaround for now. I will implement a better way to handle this later, because i need to create
+					//a bool variable for objects for the user to want or not a box2d body but right now i dont have time for that.
+
+					if (i > -1 /*i >= 0*/)
+					{
 					b2BodyDef* bodyDef = new b2BodyDef;
 					*bodyDef = b2DefaultBodyDef();
 					bodyDef->type = b2_dynamicBody;
 					bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
 					bodyDef->isBullet = getLevel().levelObjects[i]->isBullet;
 					bodyDef->userData = getLevel().levelObjects[i];
+					bodyDef->isEnabled = true;
+					bodyDef->isAwake = true;
 					b2BodyId* bodyId = new b2BodyId;
 					*bodyId = b2CreateBody(worldId, bodyDef);
 
-					b2Polygon dynamicBox = b2MakeBox(bodyWidth / 2.0f, bodyHeight / 2.0f);
-					b2ShapeDef shapeDef = b2DefaultShapeDef();
-					shapeDef.density = 1.0f;
-					shapeDef.friction = 0.3f;
-					shapeDef.enableSensorEvents = getLevel().levelObjects[i]->hasSense;
-					shapeDef.isSensor = getLevel().levelObjects[i]->hasSense;
-					shapeDef.userData = getLevel().levelObjects[i];
+					b2Polygon* dynamicBox = new b2Polygon;
+					*dynamicBox = b2MakeBox(bodyWidth / 2.0f, bodyHeight / 2.0f);
 
-					b2ShapeId shapeId = b2CreatePolygonShape(*bodyId, &shapeDef, &dynamicBox);
+					b2ShapeDef* shapeDef = new b2ShapeDef;
+					*shapeDef = b2DefaultShapeDef();
+					shapeDef->density = 1.0f;
+					shapeDef->friction = 0.3f;
+
+					//shapeDef.enableSensorEvents = getLevel().levelObjects[i]->hasSense;
+					//shapeDef.enableSensorEvents = true;
+					//shapeDef.isSensor = getLevel().levelObjects[i]->hasSense;
+
+					shapeDef->enableContactEvents = true;
+					shapeDef->userData = getLevel().levelObjects[i];
+					shapeDef->customColor = 0x0000FF00;
+					shapeDef->enableContactEvents = true;
+
+					b2ShapeId* shapeId = new b2ShapeId;
+					*shapeId = b2CreatePolygonShape(*bodyId, shapeDef, dynamicBox);
 
 					getLevel().levelObjects[i]->bodyId = bodyId;
 					getLevel().levelObjects[i]->bodyDef = bodyDef;
+					getLevel().levelObjects[i]->shapeId = shapeId;
+					getLevel().levelObjects[i]->shapeDef = shapeDef;
+					getLevel().levelObjects[i]->boxCollision = dynamicBox;
+
+					}
+					else
+					{
+						std::cout << "Spawners " << i << std::endl;
+					}					
 				}
 			}
 
@@ -269,11 +311,41 @@ namespace GameEngine {
 					getLevel().levelObjects[i]->OnUpdate();
 
 					Animation* spriteAnimation = &getLevel().levelObjects[i]->animation;
-					b2BodyDef* bodyDef = getLevel().levelObjects[i]->bodyDef;
+					
+					if (i > -1)
+					{
+						b2BodyDef* bodyDef = getLevel().levelObjects[i]->bodyDef;
 
-					if (bodyDef != nullptr) {
-						bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
+						if (bodyDef != nullptr) {
+							bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
+						}
+
+
+						//WORLD STEP DOESNT MAKE SENSE USING IT IN A OBJECT UPDATE LOOP IT SHOULD BE IN WORLD UPDATE
+// 						for (int32_t i = 0; i < 90; ++i) {
+// 							if (B2_IS_NULL(worldId) != 0) {
+// 								std::cerr << "Invalid worldId detected." << std::endl;
+// 								break;
+// 							}
+// 							else {
+// 								try {
+// 									b2World_Step(worldId, timeStep, subStepCount);
+// 									sensorListener();
+// 									contactListener();
+// 								}
+// 								catch (const std::exception& e) {
+// 									std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
+// 									__debugbreak();
+// 								}
+// 							}
+// 						}
+
 					}
+					b2World_Step(worldId, timeStep, subStepCount);
+					sensorListener();
+					contactListener();
+
+
 					for (int32_t i = 0; i < 90; ++i) {
 						if (B2_IS_NULL(worldId) != 0) {
 							std::cerr << "Invalid worldId detected." << std::endl;
@@ -283,6 +355,7 @@ namespace GameEngine {
 							try {
 								b2World_Step(worldId, timeStep, subStepCount);
 								sensorListener();
+								contactListener();
 							}
 							catch (const std::exception& e) {
 								std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
@@ -290,7 +363,6 @@ namespace GameEngine {
 							}
 						}
 					}
-
 					if (spriteAnimation->tilemapPath != "") {
 
 						if (spriteAnimation->manual.empty() == true)
@@ -430,19 +502,29 @@ namespace GameEngine {
 				}
 			}
 
+
+			/////////////////////////DEBUG TESTING/////////////////////////
 			//You can use this to debug the player position, i was using this to test if the box2d setup was working 
 			// and it seems to be updating the box2d variables correctly
 			//Debug player position
-			//std::cout << "Position: " << getLevel().levelObjects[2]->bodyDef->position.x << " " << getLevel().levelObjects[2]->bodyDef->position.y << std::endl;
+			//std::cout << "Position absolute: " << getLevel().levelObjects[2]->position.x << " " << getLevel().levelObjects[2]->position.y << std::endl;
+			//std::cout << "Position box: " << getLevel().levelObjects[2]->bodyDef->position.x << " " << getLevel().levelObjects[2]->bodyDef->position.y << std::endl;
 			//Debug player group
 			//std::cout << "Position: " << static_cast<GameObject*>(getLevel().levelObjects[2]->bodyDef->userData)->objectGroup << std::endl;
 			
 			//Debug enemy position - Always debugs one of the enemies positions. I was using this to test if the box2d setup was working
 			// on new objects created after the game started and it seems to be working correctly, so the problem is related to the sensor itself i think
-			if (getLevel().levelObjects.size() > 4)
-			{
-				std::cout << "Position: " << getLevel().levelObjects[3]->bodyDef->position.x << " " << getLevel().levelObjects[3]->bodyDef->position.y << std::endl;
-			}
+			//if (getLevel().levelObjects.size() > 4)
+			//{
+			//	std::cout << "Position: " << getLevel().levelObjects[3]->bodyDef->position.x << " " << getLevel().levelObjects[3]->bodyDef->position.y << std::endl;
+			//}
+
+
+			//Debug collision box size from player its being created with 64 by 64. Its bigger than the other collision that is being detected that has the size of 32x32
+			//std::cout << "Collision Box: " << getLevel().levelObjects[2]->collisionBoxSize.w << " " << getLevel().levelObjects[2]->collisionBoxSize.h << std::endl;
+
+			debugDraw.context = renderTarget;
+			//b2World_Draw(worldId, &debugDraw);
 
 }
 
@@ -491,7 +573,25 @@ namespace GameEngine {
 		window = SDL_CreateWindow(windowSettings.windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowSettings.windowWidth, windowSettings.windowHeight, SDL_WINDOW_OPENGL);
 		renderTarget = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+		debugDraw.context = renderTarget;
+		debugDraw.drawAABBs = true;
+		debugDraw.drawContactImpulses = true;
+		debugDraw.drawContactNormals = true;
+		debugDraw.drawContacts = true;
+		debugDraw.drawFrictionImpulses = true;
+		debugDraw.drawGraphColors = true;
+		debugDraw.drawJointExtras = true;
+		debugDraw.drawJoints = true;
+		debugDraw.drawMass = true;
+		debugDraw.drawShapes = true;
+		debugDraw.useDrawingBounds = false;
 
+		b2World_Draw(worldId , &debugDraw);
+		b2World_EnableContinuous(worldId, true);
+
+
+// 		preSolveCallback PreSolveCallback();
+// 		b2World_SetPreSolveCallback(worldId, PreSolveCallback(), nullptr);
 		Update();
 	}
 
@@ -513,12 +613,12 @@ namespace GameEngine {
 	void Engine::sensorListener()
 	{
 		b2SensorEvents sensorEvents = b2World_GetSensorEvents(worldId);
+
 		if (sensorEvents.beginCount > 0)
 		{
 			std::cout << "Sensor Events Begin Count: " << sensorEvents.beginCount << std::endl;
 
 		}
-
 		for (int i = 0; i < sensorEvents.beginCount; ++i)
 		{
 			b2SensorBeginTouchEvent* beginTouch = sensorEvents.beginEvents + i;
@@ -537,6 +637,38 @@ namespace GameEngine {
 				}
 			}
 		}
+	}
+
+	void Engine::contactListener() {
+		b2ContactEvents contactEvents = b2World_GetContactEvents(worldId);
+
+		if (contactEvents.beginCount > 0) {
+			std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
+		}
+		for (int i = 0; i < contactEvents.beginCount; ++i)
+		{
+			b2ContactBeginTouchEvent* beginTouch = contactEvents.beginEvents + i;
+			void* myUserData = b2Shape_GetUserData(beginTouch->shapeIdA);
+			if (myUserData)
+			{
+				GameObject* m = static_cast<GameObject*>(myUserData);
+				std::cout << m->objectGroup << std::endl;
+				void* myUserData2 = b2Shape_GetUserData(beginTouch->shapeIdB);
+				std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
+				
+				if (myUserData2)
+				{
+					GameObject* m2 = static_cast<GameObject*>(myUserData2);
+					m->OnCollideEnter(*m2);
+					std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
+				}
+			}
+		}
+	}
+
+	bool PreSolveCallback(b2ShapeId shapeIdA, b2ShapeId shapeIdB, b2Manifold* manifold, void* context) {
+		// Disable the contact to block collision response
+		return false;
 	}
 }
 
