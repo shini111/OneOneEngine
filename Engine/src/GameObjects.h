@@ -15,7 +15,24 @@ public:
 			: visible(visibility), isBullet(isBullet), hasSense(hasSense) {
 	}
 
+	~GameObject()
+	{
+		delete bodyId;
+		delete bodyDef;
+		delete shapeId;
+		delete shapeDef;
+		delete boxCollision;
+
+		bodyId = nullptr;
+		bodyDef = nullptr;
+		shapeId = nullptr;
+		shapeDef = nullptr;
+		boxCollision = nullptr;
+	}
+
 	Animation animation;
+
+	bool hasBox2d = true;
 
 	struct {
 		float x = 0.0f;

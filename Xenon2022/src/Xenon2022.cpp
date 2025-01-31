@@ -368,6 +368,8 @@ public:
 
 	int textureDimentions[2] = { 7,1 };
 
+	float limits[4] = {0.f, 0.f,580.f, 420.f};
+
 	std::string currentAnimation = "";
 	int animationState = 0;
 
@@ -408,27 +410,59 @@ public:
 
 		if (isGameOver == false)
 		{
+			float moveX = 0.0f;
+			float moveY = 0.0f;
 
 			ShootCheck();
 			checkDamageCooldown();
 
 			if (input.IsGamepadButtonPressed(GamepadButton::DPadLeft, false)) {
-				position.x -= movementSpeed * engine.deltaTime;
+				moveX = -1.0f;
 				animationState = 2;
 			}
 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadRight, false)) {
-				position.x += movementSpeed * engine.deltaTime;
+				moveX = 1.0f;
 				animationState = 1;
 			}
 			else {
 				animationState = 0;
 			}
 			if (input.IsGamepadButtonPressed(GamepadButton::DPadUp, false)) {
-				position.y -= movementSpeed * engine.deltaTime;
+				moveY = 1.0f;
 			}
 			else if (input.IsGamepadButtonPressed(GamepadButton::DPadDown, false)) {
-				position.y += movementSpeed * engine.deltaTime;
+				moveY = -1.0f;
 			}
+
+			// Normalize the movement vector if moving diagonally
+			float magnitude = std::sqrt(moveX * moveX + moveY * moveY);
+			if (magnitude > 0.0f) {
+				moveX /= magnitude; // Normalize X
+				moveY /= magnitude; // Normalize Y
+			}
+
+			// Apply the movement
+			float auxX = position.x;
+			float auxY = position.y;
+
+			auxX += moveX * movementSpeed * engine.deltaTime;
+			auxY -= moveY * movementSpeed * engine.deltaTime;
+
+			if (auxX > limits[0] && auxX < limits[2])
+			{
+				position.x += moveX * movementSpeed * engine.deltaTime;
+			}
+			
+			if (auxY > limits[1])
+			{
+				if (auxY < limits[3])
+				{
+					position.y -= moveY * movementSpeed * engine.deltaTime;
+				}
+			}
+
+			
+			
 		}
 
 		if (animationState == 1 && currentAnimation != "Right")
@@ -573,6 +607,26 @@ public:
 	}
 };
 
+class ScrollingBackground : public LevelBackground
+{
+public:
+	ScrollingBackground(std::string filepath) : LevelBackground(filepath)
+	{
+	}
+
+	float moveSpeed = 100.f;
+	
+
+	void OnUpdate() override
+	{
+		scrollRect.h += moveSpeed * engine.deltaTime;
+		if (scrollRect.h >= 480.f)
+		{
+			scrollRect.h = -480.f;
+		}
+	}
+};
+
 int main()
 {
 	GameWindow gameWindow;
@@ -582,21 +636,19 @@ int main()
 
 	GameLevel level;
 
-	LevelBackground backgroundLayer1;
-	backgroundLayer1.background_path = "resources/graphics/galaxy2.bmp";
-	backgroundLayer1.scrollingSpeed = 0;
+	LevelBackground* backgroundLayer1 = new LevelBackground("resources/graphics/galaxy2.bmp");
+	backgroundLayer1->scrollingSpeed = 0;
 
-	LevelBackground backgroundLayer2;
+	ScrollingBackground* backgroundLayer2 = new ScrollingBackground("resources/graphics/GAster96.bmp");
 
-	backgroundLayer2.background_path = "resources/graphics/GAster96.bmp";
-	backgroundLayer2.scrollingSpeed = -10;
-	backgroundLayer2.scrollingDirection = backgroundLayer2.vertical;
-
-	level.setLayerSize(2);
-	level.background[0] = backgroundLayer1;
-	level.background[1] = backgroundLayer2;
+	ScrollingBackground* backgroundLayer3 = new ScrollingBackground("resources/graphics/MAster96.bmp");
+	backgroundLayer3->scrollRect.h = -480.f;
 
 	engine.setLevel(level);
+
+	engine.getLevel().AddBackground(backgroundLayer1);
+	engine.getLevel().AddBackground(backgroundLayer2);
+	engine.getLevel().AddBackground(backgroundLayer3);
 
 	spaceship* ship = new spaceship();
 

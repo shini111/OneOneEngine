@@ -153,34 +153,18 @@ namespace GameEngine {
 			currentTime = SDL_GetTicks();
 			deltaTime = (currentTime - prevTime) / 1000.0f;
 
-
-			for (int i = 0; i < getLevel().background.size(); ++i)
+			
+			for (int i = 0; i < getLevel().backgrounds.size(); ++i)
 			{
-				if (getLevel().background[i].scrollingDirection == getLevel().background[i].vertical) {
-
-					getLevel().background[i].scrollRect.h += getLevel().background[i].scrollingSpeed * deltaTime;
-
-					if (getLevel().background[i].scrollingSpeed > 0)
-						getLevel().background[i].scrollRect.h2 = getLevel().background[i].scrollRect.h - windowDisplay.windowHeight;
-					else if (getLevel().background[i].scrollingSpeed < 0)
-						getLevel().background[i].scrollRect.h2 = getLevel().background[i].scrollRect.h + windowDisplay.windowHeight;
-				}
-				else {
-
-					getLevel().background[i].scrollRect.w += getLevel().background[i].scrollingSpeed * deltaTime;
-
-					if (getLevel().background[i].scrollingSpeed > 0)
-						getLevel().background[i].scrollRect.w2 = getLevel().background[i].scrollRect.w - windowDisplay.windowWidth;
-					else if (getLevel().background[i].scrollingSpeed < 0)
-						getLevel().background[i].scrollRect.w2 = getLevel().background[i].scrollRect.w + windowDisplay.windowWidth;
-				}
-
+				getLevel().backgrounds[i]->OnUpdate();
 			}
+
 			SDL_RenderClear(renderTarget);
+
 			//Multiple background layers
-			for (int i = 0; i < getLevel().background.size(); ++i)
+			for (int i = 0; i < getLevel().backgrounds.size(); ++i)
 			{
-				background = LoadTexture(getLevel().background[i].background_path, renderTarget);
+				background = LoadTexture(getLevel().backgrounds[i]->background_path, renderTarget);
 
 				SDL_Rect scrollRect;
 				SDL_Rect scrollPosition;
@@ -189,34 +173,23 @@ namespace GameEngine {
 				scrollRect.x = 0;
 				scrollRect.y = 0;
 
-				SDL_QueryTexture(background, NULL, NULL, &scrollRect.w, &scrollRect.h);
+				if (SDL_QueryTexture(background, NULL, NULL, &scrollRect.w, &scrollRect.h) != 0) {
+					std::cerr << "SDL_QueryTexture failed: " << SDL_GetError() << std::endl;
+					continue;
+				}
 
-				scrollPosition.x = getLevel().background[i].scrollRect.w;
-				scrollPosition2.x = getLevel().background[i].scrollRect.w2;
+				scrollPosition.x = getLevel().backgrounds[i]->scrollRect.w;
+				scrollPosition2.x = getLevel().backgrounds[i]->scrollRect.w2;
 
-				scrollPosition.y = getLevel().background[i].scrollRect.h;
-				scrollPosition2.y = getLevel().background[i].scrollRect.h2;
+				scrollPosition.y = getLevel().backgrounds[i]->scrollRect.h;
+				scrollPosition2.y = getLevel().backgrounds[i]->scrollRect.h2;
 
 				scrollPosition.w = scrollPosition2.w = windowDisplay.windowWidth;
 				scrollPosition.h = scrollPosition2.h = windowDisplay.windowHeight;
 
 
-				if (getLevel().background[i].scrollingDirection == getLevel().background[i].vertical) {
-
-					if (getLevel().background[i].scrollRect.h >= scrollPosition.h || getLevel().background[i].scrollRect.h <= -scrollPosition.h)
-					{
-						getLevel().background[i].scrollRect.h = 0;
-					}
-				}
-				else {
-
-					if (getLevel().background[i].scrollRect.w >= scrollPosition.w || getLevel().background[i].scrollRect.w <= -scrollPosition.w)
-					{
-						getLevel().background[i].scrollRect.w = 0;
-					}
-				}
 				SDL_RenderCopy(renderTarget, background, &scrollRect, &scrollPosition);
-				SDL_RenderCopy(renderTarget, background, &scrollRect, &scrollPosition2);
+				//SDL_RenderCopy(renderTarget, background, &scrollRect, &scrollPosition2);
 
 				SDL_DestroyTexture(background);
 			}
@@ -229,11 +202,9 @@ namespace GameEngine {
 				if (getLevel().levelObjects[i]->toBeDeleted == true) {
 					getLevel().levelObjects[i]->OnDestroyed();
 
-					if (i > 1)
+					if (getLevel().levelObjects[i]->bodyId != nullptr)
 					{
 						b2DestroyBody(*getLevel().levelObjects[i]->bodyId);
-						delete getLevel().levelObjects[i]->bodyDef;
-						delete getLevel().levelObjects[i]->bodyId;
 					}
 					else
 					{
@@ -250,6 +221,11 @@ namespace GameEngine {
 				if (obj->bodyId != nullptr)
 				{
 					b2DestroyBody(*obj->bodyId);
+					delete obj->bodyDef;
+					delete obj->bodyId;
+					delete obj->boxCollision;
+					delete obj->shapeId;
+					delete obj->shapeDef;
 				}
 			}
 
@@ -266,7 +242,7 @@ namespace GameEngine {
 					//This is a just a workaround for now. I will implement a better way to handle this later, because i need to create
 					//a bool variable for objects for the user to want or not a box2d body but right now i dont have time for that.
 
-				if (i > 1)
+				if (getLevel().levelObjects[i]->hasBox2d)
 				{
 					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
 					float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
@@ -663,9 +639,10 @@ namespace GameEngine {
 // 	}
 }
 
-void GameLevel::setLayerSize(int layerSize)
+
+void GameLevel::AddBackground(LevelBackground* bg)
 {
-	background.resize(layerSize);
+	backgrounds.push_back(bg);
 }
 
 void GameObject::Destroy()

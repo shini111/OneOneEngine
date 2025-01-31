@@ -7,6 +7,11 @@
 class LevelBackground
 {
 public:
+
+	LevelBackground(std::string filepath) : background_path(filepath)
+	{
+	};
+
 	std::string background_path = "";
 	float scrollingSpeed = 0;
 
@@ -19,21 +24,23 @@ public:
 
 	struct
 	{
-		float w = 0.0f;
-		float h = 0.0f;
+		float w = 1.0f;
+		float h = 1.0f;
 
-		float w2 = 0.0f;
-		float h2 = 0.0f;
+		float w2 = 1.0f;
+		float h2 = 1.0f;
 	}scrollRect;
+
+	virtual void OnUpdate() {};
 };
 
 class GameLevel
 {
 public:
 	std::vector<GameObject*> levelObjects;
-	std::vector<LevelBackground> background;
+	std::vector<LevelBackground*> backgrounds;
 
-	void setLayerSize(int layerSize);
+	void AddBackground(LevelBackground* bg);
 	void addObject(GameObject* obj);
 	
 
