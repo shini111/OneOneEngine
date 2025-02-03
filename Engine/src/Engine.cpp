@@ -61,85 +61,114 @@ b2WorldId worldId = b2CreateWorld(&worldDef);
 
 float timeStep = 1.0f / 60.0f;
 int subStepCount = 2;
-// int32 velocityIterations = 8;
-// int32 positionIterations = 3;
 
-InputEnum Input::mapSDLKeyToInputEnum(SDL_Keycode key) {
-	switch (key) {
-	case SDLK_w: return InputEnum::North;
-	case SDLK_s: return InputEnum::South;
-	case SDLK_a: return InputEnum::West;
-	case SDLK_d: return InputEnum::East;
-	case SDLK_UP: return InputEnum::DNorth;
-	case SDLK_DOWN: return InputEnum::DSouth;
-	case SDLK_LEFT: return InputEnum::DWest;
-	case SDLK_RIGHT: return InputEnum::DEast;
-		// Add more mappings as needed
-	default: return InputEnum::LeftThumbstick; // Default case
-	}
-}
-
-InputEnum Input::mapSDLButtonToInputEnum(Uint8 button) {
-	switch (button) {
-	case SDL_CONTROLLER_BUTTON_A: return InputEnum::ButtonA;
-	case SDL_CONTROLLER_BUTTON_B: return InputEnum::ButtonB;
-	case SDL_CONTROLLER_BUTTON_X: return InputEnum::ButtonX;
-	case SDL_CONTROLLER_BUTTON_Y: return InputEnum::ButtonY;
-		// Add more mappings as needed
-	default: return InputEnum::LeftThumbstick; // Default case
-	}
-}
-
-InputEnum Input::getKeyPressed() {
-	SDL_Event event;
-	while (SDL_PollEvent(&event)) {
-		if (event.type == SDL_KEYDOWN) {
-			return mapSDLKeyToInputEnum(event.key.keysym.sym);
-		}
-		if (event.type == SDL_CONTROLLERBUTTONDOWN) {
-			return mapSDLButtonToInputEnum(event.cbutton.button);
-		}
-	}
-	return inputEnum; // Return the current inputEnum if no key is pressed
-}
-
-void Input::setGameController(SDL_GameController* controller) {
-	gameController = controller;
-}
-
-bool Input::IsGamepadButtonPressed(GamepadButton button, bool singleClick) {
-	if (!gameController) return false;
-
-	SDL_GameControllerButton sdlButton;
-	switch (button) {
-	case GamepadButton::A: sdlButton = SDL_CONTROLLER_BUTTON_A; break;
-	case GamepadButton::B: sdlButton = SDL_CONTROLLER_BUTTON_B; break;
-	case GamepadButton::X: sdlButton = SDL_CONTROLLER_BUTTON_X; break;
-	case GamepadButton::Y: sdlButton = SDL_CONTROLLER_BUTTON_Y; break;
-	case GamepadButton::DPadLeft: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_LEFT; break;
-	case GamepadButton::DPadRight: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_RIGHT; break;
-	case GamepadButton::DPadUp: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_UP; break;
-	case GamepadButton::DPadDown: sdlButton = SDL_CONTROLLER_BUTTON_DPAD_DOWN; break;
-	default: return false;
-	}
-
-	static std::map<GamepadButton, bool> buttonState;
-	bool isPressed = SDL_GameControllerGetButton(gameController, sdlButton) != 0;
-
-	if (singleClick) {
-		if (isPressed && !buttonState[button]) {
-			buttonState[button] = true;
-			return true;
-		}
-		if (!isPressed) {
-			buttonState[button] = false;
-		}
-		return false;
-	}
-	return isPressed;
-}
 
 namespace GameEngine {
+	void Engine::Initialize(GameWindow windowSettings)
+	{
+		//Set Gravity
+		worldDef.gravity = gravity;
+
+		windowDisplay = windowSettings;
+		SDL_GameController* controller;
+		int i;
+
+		SDL_Init(SDL_INIT_VIDEO );
+
+		SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
+		
+		for (i = 0; i < SDL_NumJoysticks(); ++i) {
+			if (SDL_IsGameController(i)) {
+				char* mapping;
+				std::cout << "Index '" << i << "' is a compatible controller, named '" << SDL_GameControllerNameForIndex(i) << "'" << std::endl;
+				controller = SDL_GameControllerOpen(i);
+				input.setGameController(controller);
+				mapping = SDL_GameControllerMapping(controller);
+				std::cout << "Controller " << i << " is mapped as \"" << mapping << std::endl;
+				SDL_free(mapping);
+			}
+			else {
+				std::cout << "Index '" << i << "' is not a compatible controller." << std::endl;
+			}
+		}
+		window = SDL_CreateWindow(windowSettings.windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowSettings.windowWidth, windowSettings.windowHeight, SDL_WINDOW_OPENGL);
+		renderTarget = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+		b2World_EnableContinuous(worldId, true);
+
+		Update();
+	}
+
+	void Engine::setLevel(GameLevel level)
+	{
+		mainLevel = level;
+	}
+
+	void Engine::print(std::string printText)
+	{
+		std::cout << printText << std::endl;
+	}
+
+	GameLevel& Engine::getLevel()
+	{
+		return mainLevel;
+	}
+
+	void Engine::sensorListener()
+	{
+		b2SensorEvents sensorEvents = b2World_GetSensorEvents(worldId);
+
+		for (int i = 0; i < sensorEvents.beginCount; ++i)
+		{
+			b2SensorBeginTouchEvent* beginTouch = sensorEvents.beginEvents + i;
+			void* myUserData = b2Shape_GetUserData(beginTouch->visitorShapeId);
+			if (myUserData)
+			{
+				GameObject* m = static_cast<GameObject*>(myUserData);
+
+				void* myUserData2 = b2Shape_GetUserData(beginTouch->sensorShapeId);
+				std::cout << "Sensor detected collision with object group: " << m->objectGroup << std::endl;
+
+				if (myUserData2)
+				{
+					GameObject* m2 = static_cast<GameObject*>(myUserData2);
+					m->OnCollideEnter(*m2);
+					if (m2->objectGroup == "player")
+					{
+						std::cout << "Sensor detected collision with object group: " << m2->objectGroup << std::endl;
+					}
+				}
+			}
+		}
+	}
+
+	void Engine::contactListener() {
+		b2ContactEvents contactEvents = b2World_GetContactEvents(worldId);
+
+		if (contactEvents.beginCount > 0) {
+			//std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
+		}
+
+		for (int i = 0; i < contactEvents.beginCount; ++i)
+		{
+			b2ContactBeginTouchEvent* beginTouch = contactEvents.beginEvents + i;
+			void* myUserData = b2Shape_GetUserData(beginTouch->shapeIdA);
+			if (myUserData)
+			{
+				GameObject* m = static_cast<GameObject*>(myUserData);
+				//std::cout << m->objectGroup << std::endl;
+				void* myUserData2 = b2Shape_GetUserData(beginTouch->shapeIdB);
+				//std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
+				
+				if (myUserData2)
+				{
+					GameObject* m2 = static_cast<GameObject*>(myUserData2);
+					m->OnCollideEnter(*m2);
+					//std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
+				}
+			}
+		}
+	}
 
 	void Engine::Update()
 	{
@@ -153,7 +182,7 @@ namespace GameEngine {
 			currentTime = SDL_GetTicks();
 			deltaTime = (currentTime - prevTime) / 1000.0f;
 
-			
+
 			for (int i = 0; i < getLevel().backgrounds.size(); ++i)
 			{
 				getLevel().backgrounds[i]->OnUpdate();
@@ -166,30 +195,27 @@ namespace GameEngine {
 			{
 				background = LoadTexture(getLevel().backgrounds[i]->background_path, renderTarget);
 
-				SDL_Rect scrollRect;
+				SDL_Rect position;
 				SDL_Rect scrollPosition;
-				SDL_Rect scrollPosition2;
 
-				scrollRect.x = 0;
-				scrollRect.y = 0;
 
-				if (SDL_QueryTexture(background, NULL, NULL, &scrollRect.w, &scrollRect.h) != 0) {
+				position.x = 0;
+				position.y = 0;
+
+				if (SDL_QueryTexture(background, NULL, NULL, &position.w, &position.h) != 0) {
 					std::cerr << "SDL_QueryTexture failed: " << SDL_GetError() << std::endl;
 					continue;
 				}
 
-				scrollPosition.x = getLevel().backgrounds[i]->scrollRect.w;
-				scrollPosition2.x = getLevel().backgrounds[i]->scrollRect.w2;
+				scrollPosition.x = getLevel().backgrounds[i]->position.x;
 
-				scrollPosition.y = getLevel().backgrounds[i]->scrollRect.h;
-				scrollPosition2.y = getLevel().backgrounds[i]->scrollRect.h2;
+				scrollPosition.y = getLevel().backgrounds[i]->position.y;
 
-				scrollPosition.w = scrollPosition2.w = windowDisplay.windowWidth;
-				scrollPosition.h = scrollPosition2.h = windowDisplay.windowHeight;
+				scrollPosition.w = windowDisplay.windowWidth;
+				scrollPosition.h = windowDisplay.windowHeight;
 
 
-				SDL_RenderCopy(renderTarget, background, &scrollRect, &scrollPosition);
-				//SDL_RenderCopy(renderTarget, background, &scrollRect, &scrollPosition2);
+				SDL_RenderCopy(renderTarget, background, &position, &scrollPosition);
 
 				SDL_DestroyTexture(background);
 			}
@@ -215,7 +241,7 @@ namespace GameEngine {
 				}
 			}
 
-			for (int i = getLevel().levelObjects.size()-1; i >= 0; --i)
+			for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i)
 			{
 				auto obj = getLevel().levelObjects[i];
 				if (obj->bodyId != nullptr)
@@ -237,11 +263,6 @@ namespace GameEngine {
 
 				Animation* spriteAnimation = &obj->animation;
 
-
-				//THIS IS TO IGNORE SPAWNERS. THE FIRST TWO OBJECTS IN THE LEVEL OBJECTS VECTOR ARE SPAWNERS
-					//This is a just a workaround for now. I will implement a better way to handle this later, because i need to create
-					//a bool variable for objects for the user to want or not a box2d body but right now i dont have time for that.
-
 				if (getLevel().levelObjects[i]->hasBox2d)
 				{
 					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
@@ -249,12 +270,11 @@ namespace GameEngine {
 					bodyWidth = bodyWidth / 2.0f;
 					bodyHeight = bodyHeight / 2.0f;
 
-					
+
 					b2BodyDef* bodyDef = new b2BodyDef;
 					*bodyDef = b2DefaultBodyDef();
 					bodyDef->type = b2_dynamicBody;
 					bodyDef->position = { getLevel().levelObjects[i]->position.x, getLevel().levelObjects[i]->position.y };
-					//bodyDef-> = getLevel().levelObjects[i]->isBullet;
 					bodyDef->userData = getLevel().levelObjects[i];
 
 
@@ -265,7 +285,6 @@ namespace GameEngine {
 					float angle = 4.0f;
 
 					b2Polygon* dynamicBox = new b2Polygon;
-					//*dynamicBox = b2MakeBox(bodyWidth, bodyHeight);
 					*dynamicBox = b2MakeOffsetBox(bodyWidth, bodyHeight, bodyCenter, b2MakeRot(angle * b2_pi));
 
 
@@ -273,13 +292,6 @@ namespace GameEngine {
 					*shapeDef = b2DefaultShapeDef();
 					shapeDef->density = 1.0f;
 					shapeDef->friction = 0.3f;
-
-					//shapeDef->enableSensorEvents = getLevel().levelObjects[i]->hasSense;
-
-					//shapeDef->enableSensorEvents = true;
-					//shapeDef->isSensor = getLevel().levelObjects[i]->hasSense;
-
-					//shapeDef->enableContactEvents = true;
 
 					shapeDef->userData = getLevel().levelObjects[i];
 
@@ -294,32 +306,7 @@ namespace GameEngine {
 					getLevel().levelObjects[i]->shapeDef = shapeDef;
 					getLevel().levelObjects[i]->boxCollision = dynamicBox;
 				}
-				
-				//WORLD STEP DOESNT MAKE SENSE USING IT IN A OBJECT UPDATE LOOP IT SHOULD BE IN WORLD UPDATE
-				
 
-// 				b2World_Step(worldId, timeStep, subStepCount);
-// 				sensorListener();
-// 				contactListener();
-
-
-// 				for (int32_t i = 0; i < 90; ++i) {
-// 					if (B2_IS_NULL(worldId) != 0) {
-// 						std::cerr << "Invalid worldId detected." << std::endl;
-// 						break;
-// 					}
-// 					else {
-// 						try {
-// 							b2World_Step(worldId, timeStep, subStepCount);
-// 							sensorListener();
-// 							contactListener();
-// 						}
-// 						catch (const std::exception& e) {
-// 							std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
-// 							__debugbreak();
-// 						}
-// 					}
-// 				}
 
 				if (spriteAnimation->tilemapPath != "") {
 
@@ -449,29 +436,11 @@ namespace GameEngine {
 					}
 				}
 
-				
+
 			}
 
 			b2World_Step(worldId, timeStep, subStepCount);
 			contactListener();
-
-// 			for (int32_t i = 0; i < 60; ++i) {
-// 				if (B2_IS_NULL(worldId) != 0) {
-// 					std::cerr << "Invalid worldId detected." << std::endl;
-// 					break;
-// 				}
-// 				else {
-// 					try {
-// 						b2World_Step(worldId, timeStep, subStepCount);
-// 						contactListener();
-// 						//sensorListener();
-// 					}
-// 					catch (const std::exception& e) {
-// 						std::cerr << "Exception during b2World_Step: " << e.what() << std::endl;
-// 						__debugbreak();
-// 					}
-// 				}
-// 			}
 
 			SDL_RenderPresent(renderTarget);
 
@@ -480,30 +449,7 @@ namespace GameEngine {
 					isRunning = false;
 				}
 			}
-
-
-			/////////////////////////DEBUG TESTING/////////////////////////
-			//You can use this to debug the player position, i was using this to test if the box2d setup was working 
-			// and it seems to be updating the box2d variables correctly
-			//Debug player position
-			//std::cout << "Position absolute: " << getLevel().levelObjects[2]->position.x << " " << getLevel().levelObjects[2]->position.y << std::endl;
-			//std::cout << "Position box: " << getLevel().levelObjects[2]->bodyDef->position.x << " " << getLevel().levelObjects[2]->bodyDef->position.y << std::endl;
-			//Debug player group
-			//std::cout << "Position: " << static_cast<GameObject*>(getLevel().levelObjects[2]->bodyDef->userData)->objectGroup << std::endl;
-			
-			//Debug enemy position - Always debugs one of the enemies positions. I was using this to test if the box2d setup was working
-			// on new objects created after the game started and it seems to be working correctly, so the problem is related to the sensor itself i think
-			//if (getLevel().levelObjects.size() > 4)
-			//{
-			//	std::cout << "Position: " << getLevel().levelObjects[3]->bodyDef->position.x << " " << getLevel().levelObjects[3]->bodyDef->position.y << std::endl;
-			//}
-
-
-			//Debug collision box size from player its being created with 64 by 64. Its bigger than the other collision that is being detected that has the size of 32x32
-			//std::cout << "Collision Box: " << getLevel().levelObjects[2]->collisionBoxSize.w << " " << getLevel().levelObjects[2]->collisionBoxSize.h << std::endl;
-
-
-}
+		}
 
 		SDL_DestroyWindow(window);
 		SDL_DestroyRenderer(renderTarget);
@@ -518,147 +464,8 @@ namespace GameEngine {
 
 		SDL_Quit();
 	}
-
-	void Engine::Initialize(GameWindow windowSettings)
-	{
-		//Set Gravity
-		worldDef.gravity = gravity;
-
-
-		windowDisplay = windowSettings;
-		SDL_GameController* controller;
-		int i;
-
-		SDL_Init(SDL_INIT_VIDEO );
-
-		SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER);
-		
-		for (i = 0; i < SDL_NumJoysticks(); ++i) {
-			if (SDL_IsGameController(i)) {
-				char* mapping;
-				std::cout << "Index '" << i << "' is a compatible controller, named '" << SDL_GameControllerNameForIndex(i) << "'" << std::endl;
-				controller = SDL_GameControllerOpen(i);
-				input.setGameController(controller);
-				mapping = SDL_GameControllerMapping(controller);
-				std::cout << "Controller " << i << " is mapped as \"" << mapping << std::endl;
-				SDL_free(mapping);
-			}
-			else {
-				std::cout << "Index '" << i << "' is not a compatible controller." << std::endl;
-			}
-		}
-		window = SDL_CreateWindow(windowSettings.windowName, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowSettings.windowWidth, windowSettings.windowHeight, SDL_WINDOW_OPENGL);
-		renderTarget = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-
-		b2World_EnableContinuous(worldId, true);
-
-		Update();
-	}
-
-	void Engine::setLevel(GameLevel level)
-	{
-		mainLevel = level;
-	}
-
-	void Engine::print(std::string printText)
-	{
-		std::cout << printText << std::endl;
-	}
-
-	GameLevel& Engine::getLevel()
-	{
-		return mainLevel;
-	}
-
-	void Engine::sensorListener()
-	{
-		b2SensorEvents sensorEvents = b2World_GetSensorEvents(worldId);
-
-		for (int i = 0; i < sensorEvents.beginCount; ++i)
-		{
-			b2SensorBeginTouchEvent* beginTouch = sensorEvents.beginEvents + i;
-			void* myUserData = b2Shape_GetUserData(beginTouch->visitorShapeId);
-			if (myUserData)
-			{
-				GameObject* m = static_cast<GameObject*>(myUserData);
-
-				void* myUserData2 = b2Shape_GetUserData(beginTouch->sensorShapeId);
-				std::cout << "Sensor detected collision with object group: " << m->objectGroup << std::endl;
-
-				if (myUserData2)
-				{
-					GameObject* m2 = static_cast<GameObject*>(myUserData2);
-					m->OnCollideEnter(*m2);
-					if (m2->objectGroup == "player")
-					{
-						std::cout << "Sensor detected collision with object group: " << m2->objectGroup << std::endl;
-					}
-				}
-			}
-		}
-	}
-
-	void Engine::contactListener() {
-		b2ContactEvents contactEvents = b2World_GetContactEvents(worldId);
-
-		if (contactEvents.beginCount > 0) {
-			//std::cout << "Contact Events Begin Count: " << contactEvents.beginCount << std::endl;
-		}
-
-		for (int i = 0; i < contactEvents.beginCount; ++i)
-		{
-			b2ContactBeginTouchEvent* beginTouch = contactEvents.beginEvents + i;
-			void* myUserData = b2Shape_GetUserData(beginTouch->shapeIdA);
-			if (myUserData)
-			{
-				GameObject* m = static_cast<GameObject*>(myUserData);
-				//std::cout << m->objectGroup << std::endl;
-				void* myUserData2 = b2Shape_GetUserData(beginTouch->shapeIdB);
-				//std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
-				
-				if (myUserData2)
-				{
-					GameObject* m2 = static_cast<GameObject*>(myUserData2);
-					m->OnCollideEnter(*m2);
-					//std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
-				}
-			}
-		}
-	}
-
-
-// 	bool Engine::b2OverlapResultFcn(b2ShapeId id) {
-// 		
-// 		GameObject* obj = static_cast<GameObject*>(b2Shape_GetUserData(id));
-// 		if (obj != nullptr && obj->objectGroup)
-// 		{
-// 			return true;
-// 		}
-// 		// continue the query
-// 		return true;
-// 	}
 }
 
 
-void GameLevel::AddBackground(LevelBackground* bg)
-{
-	backgrounds.push_back(bg);
-}
 
-void GameObject::Destroy()
-{
-	toBeDeleted = true;
-}
-
-void GameLevel::addObject(GameObject* obj)
-{
-	levelObjects.push_back(obj);
-	obj->OnStart();
-}
-
-int Animation::GetSpriteWidth()
-{
-	int ret = animationRect.w / tilemapSize.w;
-	return ret;
-}
 

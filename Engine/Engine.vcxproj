@@ -137,13 +137,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="src\Animator.h" />
+    <ClInclude Include="src\Animation.h" />
     <ClInclude Include="src\Engine.h" />
     <ClInclude Include="src\GameLevel.h" />
     <ClInclude Include="src\GameObjects.h" />
+    <ClInclude Include="src\Input.h" />
+    <ClInclude Include="src\LevelBackground.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Animation.cpp" />
     <ClCompile Include="src\Engine.cpp" />
+    <ClCompile Include="src\GameLevel.cpp" />
+    <ClCompile Include="src\GameObjects.cpp" />
+    <ClCompile Include="src\Input.cpp" />
+    <ClCompile Include="src\LevelBackground.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

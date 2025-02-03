@@ -12,7 +12,6 @@ public:
 		int y = 0;
 	}coordPosition;
 
-
 	AnimationCoord() = default;
 
 	AnimationCoord(int xParam, int yParam) {
@@ -24,7 +23,6 @@ public:
 
 
 };
-
 
 class Animation {
 public:

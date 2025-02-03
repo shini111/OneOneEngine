@@ -135,7 +135,31 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Ally.cpp" />
+    <ClCompile Include="src\Enemy.cpp" />
+    <ClCompile Include="src\EnemyProjectile.cpp" />
+    <ClCompile Include="src\Explosion.cpp" />
+    <ClCompile Include="src\Loner.cpp" />
+    <ClCompile Include="src\LonerSpawner.cpp" />
+    <ClCompile Include="src\Missile.cpp" />
+    <ClCompile Include="src\Rusher.cpp" />
+    <ClCompile Include="src\RusherSpawner.cpp" />
+    <ClCompile Include="src\ScrollingBackground.cpp" />
+    <ClCompile Include="src\Spaceship.cpp" />
     <ClCompile Include="src\Xenon2022.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Ally.h" />
+    <ClInclude Include="src\Enemy.h" />
+    <ClInclude Include="src\EnemyProjectile.h" />
+    <ClInclude Include="src\Explosion.h" />
+    <ClInclude Include="src\Loner.h" />
+    <ClInclude Include="src\LonerSpawner.h" />
+    <ClInclude Include="src\Missile.h" />
+    <ClInclude Include="src\Rusher.h" />
+    <ClInclude Include="src\RusherSpawner.h" />
+    <ClInclude Include="src\ScrollingBackground.h" />
+    <ClInclude Include="src\Spaceship.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

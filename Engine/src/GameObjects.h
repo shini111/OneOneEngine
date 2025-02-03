@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "Animator.h"
+#include "Animation.h"
 
 typedef struct b2BodyId;
 typedef struct b2BodyDef;
@@ -50,11 +50,13 @@ public:
 		int b = 255;
 	}modulate;
 
-	float rotation = 0;
+	float rotation = 0.f;
 
 	bool visible = true;
 	bool isBullet = false;
 	bool hasSense = false;
+
+	float movementSpeed = 150.0f;
 
 	virtual void OnStart() {};
 	virtual void OnUpdate() {};
@@ -76,11 +78,3 @@ public:
 	bool toBeDeleted = false;
 };
 
-class Pawn : public GameObject
-{
-public:
-	Pawn(bool visibility = true, bool isBullet = false, bool hasSense = true)
-		: GameObject(visibility, isBullet, hasSense) {
-	}
-	float movementSpeed = 150.0f;
-};
