@@ -7,47 +7,7 @@
 #include <box2d/box2d.h>
 #include "SDL_gamecontroller.h"
 
-
-SDL_Renderer* SDL_CreateRenderer(SDL_Window* window, int index, Uint32 flags);
-SDL_Texture* SDL_CreateTextureFromSurface(SDL_Renderer* renderer, SDL_Surface* surface);
-
 Input input;
-
-static SDL_Texture* LoadTexture(std::string filePath, SDL_Renderer* renderTarget) {
-	SDL_Texture* texture = nullptr;
-	SDL_Surface* surface = SDL_LoadBMP(filePath.c_str());
-	if (surface == NULL)
-		std::cout << "Error1" << std::endl;
-	else
-	{
-		SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 255, 0, 255));
-		texture = SDL_CreateTextureFromSurface(renderTarget, surface);
-		if (texture == NULL)
-			std::cout << "Error2" << std::endl;
-	}
-
-	SDL_FreeSurface(surface);
-
-	return texture;
-}
-
-static SDL_Surface* OptimizedSurface(std::string filePath, SDL_Surface* windowSurface) {
-	SDL_Surface* optimizedSurface = nullptr;
-	SDL_Surface* surface = SDL_LoadBMP(filePath.c_str());
-
-	if (surface == nullptr) {
-		std::cout << "Error loading image: " << filePath << std::endl;
-	}
-	else {
-		optimizedSurface = SDL_ConvertSurface(surface, windowSurface->format, 0);
-		if (optimizedSurface == nullptr) {
-			std::cout << "Error optimizing surface: " << filePath << std::endl;
-		}
-		SDL_FreeSurface(surface);
-		return optimizedSurface;
-	}
-
-}
 
 SDL_Texture* windowSurface = nullptr;
 SDL_Texture* background = nullptr;
@@ -170,6 +130,40 @@ namespace GameEngine {
 		}
 	}
 
+	SDL_Texture* Engine::LoadTexture(std::string filePath, SDL_Renderer* renderTarget) {
+		SDL_Texture* texture = nullptr;
+		SDL_Surface* surface = SDL_LoadBMP(filePath.c_str());
+		if (surface == NULL)
+			std::cout << "Error1" << std::endl;
+		else
+		{
+			SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, 255, 0, 255));
+			texture = SDL_CreateTextureFromSurface(renderTarget, surface);
+			if (texture == NULL)
+				std::cout << "Error2" << std::endl;
+		}
+		SDL_FreeSurface(surface);
+
+		return texture;
+	}
+
+	SDL_Surface* Engine::OptimizedSurface(std::string filePath, SDL_Surface* windowSurface) {
+		SDL_Surface* optimizedSurface = nullptr;
+		SDL_Surface* surface = SDL_LoadBMP(filePath.c_str());
+
+		if (surface == nullptr) {
+			std::cout << "Error loading image: " << filePath << std::endl;
+		}
+		else {
+			optimizedSurface = SDL_ConvertSurface(surface, windowSurface->format, 0);
+			if (optimizedSurface == nullptr) {
+				std::cout << "Error optimizing surface: " << filePath << std::endl;
+			}
+			SDL_FreeSurface(surface);
+			return optimizedSurface;
+		}
+	}
+
 	void Engine::Update()
 	{
 		int prevTime = 0;
@@ -220,8 +214,6 @@ namespace GameEngine {
 				SDL_DestroyTexture(background);
 			}
 
-
-
 			// Delete GameObjects
 
 			for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i) {
@@ -241,20 +233,6 @@ namespace GameEngine {
 				}
 			}
 
-			for (int i = getLevel().levelObjects.size() - 1; i >= 0; --i)
-			{
-				auto obj = getLevel().levelObjects[i];
-				if (obj->bodyId != nullptr)
-				{
-					b2DestroyBody(*obj->bodyId);
-					delete obj->bodyDef;
-					delete obj->bodyId;
-					delete obj->boxCollision;
-					delete obj->shapeId;
-					delete obj->shapeDef;
-				}
-			}
-
 			//Manage Created Objects
 			for (int i = 0; i < getLevel().levelObjects.size(); ++i) {
 				GameObject* obj = getLevel().levelObjects[i];
@@ -263,7 +241,7 @@ namespace GameEngine {
 
 				Animation* spriteAnimation = &obj->animation;
 
-				if (getLevel().levelObjects[i]->hasBox2d)
+				if (getLevel().levelObjects[i]->hasBox2d && !getLevel().levelObjects[i]->box2dCreated)
 				{
 					float bodyWidth = getLevel().levelObjects[i]->collisionBoxSize.w;
 					float bodyHeight = getLevel().levelObjects[i]->collisionBoxSize.h;
@@ -305,8 +283,9 @@ namespace GameEngine {
 					getLevel().levelObjects[i]->shapeId = shapeId;
 					getLevel().levelObjects[i]->shapeDef = shapeDef;
 					getLevel().levelObjects[i]->boxCollision = dynamicBox;
-				}
 
+					obj->box2dCreated = true;
+				}
 
 				if (spriteAnimation->tilemapPath != "") {
 
@@ -364,7 +343,7 @@ namespace GameEngine {
 						if (getLevel().levelObjects[i]->visible) {
 
 
-							SDL_Color myColor = { getLevel().levelObjects[i]->modulate.r, getLevel().levelObjects[i]->modulate.g, getLevel().levelObjects[i]->modulate.b,255 };
+							SDL_Color myColor = { getLevel().levelObjects[i]->colorChange.r, getLevel().levelObjects[i]->colorChange.g, getLevel().levelObjects[i]->colorChange.b,255 };
 
 							SDL_SetTextureColorMod(sprite, myColor.r, myColor.g, myColor.b);
 
@@ -427,7 +406,7 @@ namespace GameEngine {
 						spriteRect.h = spriteAnimation->animationRect.h;
 
 						if (getLevel().levelObjects[i]->visible) {
-							SDL_Color myColor = { getLevel().levelObjects[i]->modulate.r, getLevel().levelObjects[i]->modulate.g, getLevel().levelObjects[i]->modulate.b,255 };
+							SDL_Color myColor = { getLevel().levelObjects[i]->colorChange.r, getLevel().levelObjects[i]->colorChange.g, getLevel().levelObjects[i]->colorChange.b,255 };
 
 							SDL_SetTextureColorMod(sprite, myColor.r, myColor.g, myColor.b);
 							SDL_RenderCopyEx(renderTarget, sprite, &spriteRect, &spritePos, getLevel().levelObjects[i]->rotation, NULL, SDL_FLIP_NONE);
@@ -436,7 +415,17 @@ namespace GameEngine {
 					}
 				}
 
+				//Update box2D Position !!TEST!!
+				if (obj->bodyId != nullptr)
+				{
+					if (b2Body_IsValid(*obj->bodyId))
+					{
+						b2Vec2 position{ (obj->position.x), (obj->position.y) };
+						b2Rot rotation{ obj->bodyDef->rotation.c, obj->bodyDef->rotation.s };
 
+						b2Body_SetTransform(*obj->bodyId, position, rotation);
+					}
+				}
 			}
 
 			b2World_Step(worldId, timeStep, subStepCount);

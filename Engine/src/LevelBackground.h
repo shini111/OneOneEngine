@@ -5,28 +5,16 @@ class LevelBackground
 {
 public:
 
-	LevelBackground(std::string filepath) : background_path(filepath)
-	{
-	};
+    LevelBackground(std::string filepath) : background_path(filepath)
+    {};
 
-	std::string background_path = "";
-	float scrollingSpeed = 0;
+    std::string background_path = "";
 
-	enum scrollingDirectionEnum {
-		vertical,
-		horizontal,
-	};
+    struct
+    {
+        float x = 1.0f;
+        float y = 1.0f;
+    }position;
 
-	int scrollingDirection = vertical;
-
-	struct
-	{
-		float x = 1.0f;
-		float y = 1.0f;
-
-		float w2 = 1.0f;
-		float h2 = 1.0f;
-	}position;
-
-	virtual void OnUpdate() {};
+    virtual void OnUpdate() {};
 };

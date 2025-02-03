@@ -37,7 +37,6 @@ int main()
 	GameLevel level;
 
 	LevelBackground* backgroundLayer1 = new LevelBackground("resources/graphics/galaxy2.bmp");
-	backgroundLayer1->scrollingSpeed = 0;
 
 	ScrollingBackground* backgroundLayer2 = new ScrollingBackground("resources/graphics/GAster96.bmp");
 

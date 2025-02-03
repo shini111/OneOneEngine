@@ -33,6 +33,7 @@ public:
 	Animation animation;
 
 	bool hasBox2d = true;
+	bool box2dCreated = false;
 
 	struct {
 		float x = 0.0f;
@@ -48,7 +49,7 @@ public:
 		int r = 255;
 		int g = 255;
 		int b = 255;
-	}modulate;
+	}colorChange;
 
 	float rotation = 0.f;
 

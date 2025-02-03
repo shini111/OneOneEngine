@@ -22,6 +22,10 @@ extern Input input;
 struct _SDL_GameController;
 typedef _SDL_GameController SDL_GameController;
 
+typedef struct SDL_Texture;
+typedef struct SDL_Surface;
+typedef struct SDL_Renderer;
+
 typedef struct b2ShapeId;
 typedef struct b2Manifold;
 
@@ -48,6 +52,8 @@ namespace GameEngine {
 
 		void Update();
 		void Initialize(GameWindow windowSettings);
+		static SDL_Texture* LoadTexture(std::string filePath, SDL_Renderer* renderTarget);
+		static SDL_Surface* OptimizedSurface(std::string filePath, SDL_Surface* windowSurface);
 	private:
 		void sensorListener();
 		void contactListener();
