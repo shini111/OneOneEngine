@@ -2,6 +2,7 @@
 
 
 #include <cstdint>
+#include <algorithm>
 
 #include <SDL.h>
 #include <box2d/box2d.h>
@@ -21,6 +22,7 @@ b2WorldId worldId = b2CreateWorld(&worldDef);
 
 float timeStep = 1.0f / 60.0f;
 int subStepCount = 2;
+float physicsAccumulator = 0.0f;
 
 
 namespace GameEngine {
@@ -113,19 +115,21 @@ namespace GameEngine {
 		{
 			b2ContactBeginTouchEvent* beginTouch = contactEvents.beginEvents + i;
 			void* myUserData = b2Shape_GetUserData(beginTouch->shapeIdA);
-			if (myUserData)
+			void* myUserData2 = b2Shape_GetUserData(beginTouch->shapeIdB);
+
+			if (myUserData && myUserData2)
 			{
 				GameObject* m = static_cast<GameObject*>(myUserData);
-				//std::cout << m->objectGroup << std::endl;
-				void* myUserData2 = b2Shape_GetUserData(beginTouch->shapeIdB);
-				//std::cout << "Collision A: " << m->objectGroup << " " << m->collisionBoxSize.w << " " << m->collisionBoxSize.h;
-				
-				if (myUserData2)
-				{
-					GameObject* m2 = static_cast<GameObject*>(myUserData2);
-					m->OnCollideEnter(*m2);
-					//std::cout << " Collision B: " << m2->objectGroup << " " << m2->collisionBoxSize.w << " " << m2->collisionBoxSize.h << std::endl;
-				}
+				GameObject* m2 = static_cast<GameObject*>(myUserData2);
+
+				// Box2D doesn't guarantee which shape ends up as A vs B for a given
+				// contact, so both sides need to be notified. Only calling
+				// m->OnCollideEnter(*m2) meant whichever object type has no reaction to
+				// the contact (e.g. a bullet, which never overrides OnCollideEnter) "won"
+				// purely by chance whenever Box2D happened to put it in the A slot, and
+				// the object that should have reacted never even found out about it.
+				m->OnCollideEnter(*m2);
+				m2->OnCollideEnter(*m);
 			}
 		}
 	}
@@ -259,11 +263,17 @@ namespace GameEngine {
 					b2BodyId* bodyId = new b2BodyId;
 					*bodyId = b2CreateBody(worldId, bodyDef);
 
-					b2Vec2 bodyCenter{ bodyWidth, bodyHeight };
-					float angle = 4.0f;
-
+					// Centered on the body origin. The body origin is set to
+					// obj->position above, and that is also exactly where the sprite is
+					// drawn (spritePos below is built straight from position). This used
+					// to be offset by a full half-width and half-height
+					// ({bodyWidth, bodyHeight}, with an extra 4*pi "rotation" that was
+					// actually a no-op), shifting every object's hitbox away from its
+					// visible sprite by an amount that depended on that object's own
+					// collision size. Two sprites could overlap on screen while their
+					// real hitboxes were nowhere near each other, or the reverse.
 					b2Polygon* dynamicBox = new b2Polygon;
-					*dynamicBox = b2MakeOffsetBox(bodyWidth, bodyHeight, bodyCenter, b2MakeRot(angle * b2_pi));
+					*dynamicBox = b2MakeBox(bodyWidth, bodyHeight);
 
 
 					b2ShapeDef* shapeDef = new b2ShapeDef;
@@ -415,21 +425,69 @@ namespace GameEngine {
 					}
 				}
 
-				//Update box2D Position !!TEST!!
+				// Drive the box2D body from the object's own authoritative position using
+				// velocity instead of an instant SetTransform "teleport". Box2D's own docs
+				// say SetTransform "acts as a teleport" -- it has no notion of the path
+				// taken between frames, so continuous collision never sees a fast object
+				// sweep past a thin collider between two teleports, and the hit is just
+				// missed. Setting velocity instead lets Box2D actually integrate the
+				// motion during the physics step below, so continuous collision can catch
+				// it. The body gets snapped back to the exact authoritative position
+				// afterwards (see below the step loop), so the game's own movement code
+				// still fully owns where things end up -- Box2D is only used here to
+				// detect what the object would have hit along the way.
 				if (obj->bodyId != nullptr)
 				{
 					if (b2Body_IsValid(*obj->bodyId))
 					{
-						b2Vec2 position{ (obj->position.x), (obj->position.y) };
-						b2Rot rotation{ obj->bodyDef->rotation.c, obj->bodyDef->rotation.s };
+						b2Vec2 targetPosition{ obj->position.x, obj->position.y };
+						b2Vec2 currentBodyPosition = b2Body_GetPosition(*obj->bodyId);
 
-						b2Body_SetTransform(*obj->bodyId, position, rotation);
+						b2Vec2 velocity{ 0.f, 0.f };
+						if (deltaTime > 0.0f)
+						{
+							velocity.x = (targetPosition.x - currentBodyPosition.x) / deltaTime;
+							velocity.y = (targetPosition.y - currentBodyPosition.y) / deltaTime;
+						}
+
+						b2Body_SetLinearVelocity(*obj->bodyId, velocity);
 					}
 				}
 			}
 
-			b2World_Step(worldId, timeStep, subStepCount);
-			contactListener();
+			// Step physics on a fixed-timestep accumulator built from the real frame
+			// delta, so simulated time matches real elapsed time regardless of framerate.
+			// This used to always advance exactly one hardcoded timeStep per rendered
+			// frame, which only lined up with real time as long as vsync kept frames at
+			// exactly that rate -- any stall or refresh-rate mismatch let it drift.
+			// Clamp so a single slow frame (a stall, asset loading) can't dump a huge
+			// deltaTime into the accumulator and trigger a burst of world steps at once.
+			physicsAccumulator += (deltaTime < 0.25f) ? deltaTime : 0.25f;
+			while (physicsAccumulator >= timeStep)
+			{
+				b2World_Step(worldId, timeStep, subStepCount);
+				contactListener();
+				physicsAccumulator -= timeStep;
+			}
+
+			// Now that Box2D has had a chance to sweep each body's velocity-driven motion
+			// (so continuous collision could catch anything a fast object would have
+			// hit), snap every body's transform back to its object's own authoritative
+			// position. This keeps next frame's velocity calculation exactly in sync with
+			// the game's manual position tracking, and stops any leftover velocity from
+			// making a body drift on its own between frames.
+			for (int i = 0; i < getLevel().levelObjects.size(); ++i)
+			{
+				GameObject* syncObj = getLevel().levelObjects[i];
+				if (syncObj->bodyId != nullptr && b2Body_IsValid(*syncObj->bodyId))
+				{
+					b2Vec2 position{ syncObj->position.x, syncObj->position.y };
+					b2Rot rotation{ syncObj->bodyDef->rotation.c, syncObj->bodyDef->rotation.s };
+
+					b2Body_SetTransform(*syncObj->bodyId, position, rotation);
+					b2Body_SetLinearVelocity(*syncObj->bodyId, b2Vec2{ 0.f, 0.f });
+				}
+			}
 
 			SDL_RenderPresent(renderTarget);
 

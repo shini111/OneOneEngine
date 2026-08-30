@@ -68,11 +68,11 @@ public:
 
 	std::string objectGroup;
 
-	b2BodyId* bodyId;
-	b2BodyDef* bodyDef;
-	b2ShapeId* shapeId;
-	b2ShapeDef* shapeDef;
-	b2Polygon* boxCollision;
+	b2BodyId* bodyId = nullptr;
+	b2BodyDef* bodyDef = nullptr;
+	b2ShapeId* shapeId = nullptr;
+	b2ShapeDef* shapeDef = nullptr;
+	b2Polygon* boxCollision = nullptr;
 
 
 	bool toBeCreated = true;
